@@ -32,7 +32,7 @@ def read_snapshot_simple( sim_dir, snapshot, particle_type ):
     # Raise an error if not found.
     else:
         raise IOError(
-            'Cannot find snapshot at specified locations.' + \
+            'Cannot find snapshot at specified locations. ' + \
             'Locations searched:\n{}\n{}'.format(
                 snapshot_dir,
                 snapshot_file_if_no_dir

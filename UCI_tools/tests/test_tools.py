@@ -34,4 +34,17 @@ class TestLoadFIREData( unittest.TestCase ):
     def test_error( self ):
         '''This function tests if the code sends the proper error when it breaks.'''
 
-        assert False
+        desired_msg = (
+            'Cannot find snapshot at specified locations. '
+            + 'Locations searched:\n'
+            + 'this_dir_does_not_exist/snapdir_600\n'
+            + 'this_dir_does_not_exist/snapshot_600.hdf5'
+        )
+        with self.assertRaises( IOError ) as error:
+            tools.read_snapshot_simple(
+                sim_dir = 'this_dir_does_not_exist',
+                snapshot = 600,
+                particle_type = 'PartType4',
+            )
+
+        self.assertEqual( str( error.exception ), desired_msg )
