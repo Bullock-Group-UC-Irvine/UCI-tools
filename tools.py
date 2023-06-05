@@ -30,4 +30,8 @@ def fe_over_h_ratios(mfrac,he_frac,fe_frac):
     ab_fe_h = np.asarray(np.log10(fe_h_num/sun_fe_h_frac))
     return ab_fe_h
 
-
+def sft_to_ages(sft):
+    from astropy.cosmology import Planck13 
+    z = (1/sft)-1
+    ages = np.array((Planck13.lookback_time(z)))
+    return ages
