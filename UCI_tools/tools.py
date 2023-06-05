@@ -2,6 +2,7 @@ import glob
 import h5py
 import os
 import pandas as pd
+import numpy as np
 
 ################################################################################
 
@@ -73,3 +74,32 @@ def read_snapshot_simple( sim_dir, snapshot, particle_type ):
     p = pd.concat( snapshot_pieces )
                 
     return p
+
+
+def fe_over_h_ratios(mfrac,he_frac,fe_frac):
+    h_frac=1-mfrac-he_frac
+    #...some constants                                                                                           
+    sun_fe_h_frac = 0.0030/91.2
+    mass_h = 1.0084 # in Atomic Mass Units                                                                                              
+    mass_fe= 55.845 # in Atomic Mass Units
+    #...Need to convert mass fractions to number fractions                                                                                                
+    fe_h_num = (fe_frac/h_frac)*(mass_h/mass_fe)
+    #...Abundance ratio                                                                                                                            
+    ab_fe_h = np.asarray(np.log10(fe_h_num/sun_fe_h_frac))
+    return ab_fe_h
+
+def sft_to_ages(sft):
+    '''
+    This code takes in star formation time in terms of scale factor and returns its lookback time.
+
+    Args:
+        sft (float):
+            Star formation time in terms of scale factor
+    Returns:
+        lbt (float):
+            Star formation time in terms of lookback time (billions of years)
+    '''
+    from astropy.cosmology import Planck13 
+    z = (1/sft)-1
+    ages = np.array((Planck13.lookback_time(z)))
+    return ages
