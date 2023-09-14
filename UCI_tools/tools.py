@@ -1,5 +1,6 @@
 import csv
 import h5py
+import numpy as np
 import pandas as pd
 
 try:
@@ -106,7 +107,6 @@ def save_prediction(string, y, dy, fname='data.txt'):
     return None
 
 def read_snapshot_simple( filepath, particle_type='PartType0' ):
-    
     f = h5py.File( filepath, 'r' )
 
     data = {}
@@ -139,3 +139,89 @@ def sft_to_ages(sft):
     z = (1/sft)-1
     ages = np.array((Planck13.lookback_time(z)))
     return ages
+
+def calc_cyl_vels(v_vecs_rot, coords_rot):
+    '''
+    Put velocities into cylindrical coordinates given Cartesian velocites and 
+    coordinates. These velocity and coordinate arguments should be centered and
+    rotated so their z components align with the total angular momentum of the
+    galaxy's stars (i.e. so their z component is perpendicular to the disc).
+    
+    Parameters
+    ----------
+    v_vecs_rot: np.ndarray, shape=(number of particles, 3)
+        Velocity vectors in Cartesian coordinates rotated so their z-axis 
+        aligns with the angular
+        momentum vector of the stars.
+    coords_rot: np.ndarray, shpae=(number of particles, 3)
+        Position vectors in Cartesian coordinates rotated so their z-axis
+        aligns with the angular momentum vector of the stars.
+    
+    Returns
+    -------
+    d: dict
+        Dictionary containing the velocity information for the particles.
+        It contains the folowing key, value pairs.
+        'v_vec_disc': Only x and y components of velocity
+        'coord_disc': Only x and y components of coordinates
+        'v_dot_rhat': The r (scalar) component of velocity, where 
+            d['coord_disc'] gives
+            the r vector (can be negative if the projection of velocity along r
+            points in the opposite direction of r)
+        'v_r_vec': The projection of velocity along the r vector, expressed in
+            Cartesian x and y components
+        'v_phi_vec': The projection of velocity along the phi vector, expressed
+            in Cartesian x and y components
+        'v_phi_mag': The magnitude of the projection of velocity along the phi
+            vector (always positive)
+        'v_dot_phihat': The phi (scalar) component of velocity (can be negative
+            if the projection of velocity along phi points in the opposite
+            direction of phi)
+    '''
+
+    # Initialize a dictionary into which we put particle kenematic properties
+    d = {} 
+    #xy component of velocity
+    d['v_vec_disc'] = v_vecs_rot[:,:2] 
+    #xy component of coordinates
+    d['coord_disc'] = coords_rot[:,:2] 
+
+    ###################################################################
+    ## Find the projection of velocity onto the xy vector (i.e. v_r) 
+    ## v_r = v dot r / r^2 * r 
+    ###################################################################
+    vdotrs = np.sum(d['v_vec_disc'] \
+                   * d['coord_disc'], axis=1)
+    rmags = np.linalg.norm(d['coord_disc'], axis=1)
+    d['v_dot_rhat'] = vdotrs / rmags
+
+    #v dot r / r^2
+    vdotrs_r2 = (vdotrs \
+        / np.linalg.norm(d['coord_disc'], axis=1) **2.)
+    #Need to reshape v dot r / r^2 so its shape=(number of particles,1)
+    #so we can mutilpy those scalars by the r vector
+    vdotrs_r2 = vdotrs_r2.reshape(len(d['coord_disc']), 1)
+    d['v_r_vec'] = vdotrs_r2 * d['coord_disc']
+    ###################################################################
+
+    #v_phi is the difference of the xy velocity and v_r
+    d['v_phi_vec'] = d['v_vec_disc'] - d['v_r_vec']
+    d['v_phi_mag'] = np.linalg.norm(d['v_phi_vec'],axis=1)
+
+    ###################################################################
+    ## Finding the vphi in \vec{vphi} = vphi * \hat{vphi} 
+    ## (i.e. v dot phi )
+    ## Note v_phi_mag = |v dot phi|, and we want to determine whether
+    ## v dot phi is positive or negative.
+    ###################################################################
+    rxvs = np.cross(d['coord_disc'], 
+                    d['v_vec_disc']) #r cross v
+    # v dot phi is positive if the z component of r cross v is 
+    # positive,
+    # because this means its angular momentum is in the same direction
+    # as the disc's.
+    signs = rxvs/np.abs(rxvs) 
+    d['v_dot_phihat'] = d['v_phi_mag']*signs
+    ###################################################################
+
+    return d
