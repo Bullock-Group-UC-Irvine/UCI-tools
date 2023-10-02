@@ -1,8 +1,3 @@
-import csv
-import h5py
-import numpy as np
-import pandas as pd
-
 try:
     '''
     The user should have a paths.py script defining the idiosyncratic
@@ -38,6 +33,7 @@ def save_var_latex(key, value, fname='data.txt'):
     -------
     None
     '''
+    import csv
 
     dict_var = {}
 
@@ -92,6 +88,7 @@ def save_prediction(string, y, dy, fname='data.txt'):
     -------
     None
     ''' 
+    import numpy as np
 
     save_var_latex(string, y)
     if len(dy)==1:
@@ -107,6 +104,9 @@ def save_prediction(string, y, dy, fname='data.txt'):
     return None
 
 def read_snapshot_simple( filepath, particle_type='PartType0' ):
+    import hp5y
+    import pandas as pd
+
     f = h5py.File( filepath, 'r' )
 
     data = {}
@@ -123,6 +123,8 @@ def read_snapshot_simple( filepath, particle_type='PartType0' ):
     return p
 
 def fe_over_h_ratios(mfrac,he_frac,fe_frac):
+    import numpy as np
+
     h_frac=1-mfrac-he_frac
     #...some constants                                                                                           
     sun_fe_h_frac = 0.0030/91.2
@@ -136,6 +138,8 @@ def fe_over_h_ratios(mfrac,he_frac,fe_frac):
 
 def sft_to_ages(sft):
     from astropy.cosmology import Planck13 
+    import numpy as np
+
     z = (1/sft)-1
     ages = np.array((Planck13.lookback_time(z)))
     return ages
@@ -178,6 +182,7 @@ def calc_cyl_vels(v_vecs_rot, coords_rot):
             if the projection of velocity along phi points in the opposite
             direction of phi)
     '''
+    import numpy as np
 
     # Initialize a dictionary into which we put particle kenematic properties
     d = {} 
