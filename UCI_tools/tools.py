@@ -157,7 +157,7 @@ def calc_cyl_vels(v_vecs_rot, coords_rot):
         Velocity vectors in Cartesian coordinates rotated so their z-axis 
         aligns with the angular
         momentum vector of the stars.
-    coords_rot: np.ndarray, shpae=(number of particles, 3)
+    coords_rot: np.ndarray, shape=(number of particles, 3)
         Position vectors in Cartesian coordinates rotated so their z-axis
         aligns with the angular momentum vector of the stars.
     
@@ -206,6 +206,8 @@ def calc_cyl_vels(v_vecs_rot, coords_rot):
     #Need to reshape v dot r / r^2 so its shape=(number of particles,1)
     #so we can mutilpy those scalars by the r vector
     vdotrs_r2 = vdotrs_r2.reshape(len(d['coord_disc']), 1)
+    # The projection of velocity along the r vector, expressed in
+    # Cartesian x and y components:
     d['v_r_vec'] = vdotrs_r2 * d['coord_disc']
     ###################################################################
 
