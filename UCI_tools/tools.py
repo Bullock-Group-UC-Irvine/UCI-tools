@@ -103,6 +103,68 @@ def save_prediction(string, y, dy, fname='data.txt'):
         raise ValueError('Margin of error has a maximum of two elements.')
     return None
 
+def get_data(filename, num_of_file, key1, key2):
+    '''
+    Parameters
+    ----------
+    filename: str
+        An almost complete path to the snapshot file, excluding the snapshot
+        partition number and extension. 
+        E.g. ('/data17/grenache/aalazar/FIRE/GVB/m12_elvis_RomeoJuliet_res3500'
+              '/output/hdf5/snapdir_600/snapshot_600')
+    num_of_file: int
+        The number of files into which the snapshot is partitioned in the
+        snapdir.
+    key1: str
+        The key for the h5py.Group the user wants to access. Available groups 
+        are 
+        'Header', 'PartType0', 'PartType1', 'PartType2', 'PartType3', and
+        'PartType4'.
+
+        'PartType0' is gas. 'PartType1' is dark matter.
+        'PartType2' is dummy collisionless. 'PartType3' is grains/PIC
+        particles. 'PartType4' is stars. 'PartType5' is black holes / 
+        sinks.
+    key2: str
+        If key1 is not 'Header', key2 is the key for h5py.Dataset the user 
+        wants to access. Different particle
+        types have different datasets. If key1 is 'Header', key2 specifies the
+        attribute to retrieve from the header.
+        
+    Returns
+    -------
+    result
+        The data given by the specified file and keys
+    '''
+    import h5py
+    import numpy as np
+    from progressbar import ProgressBar
+
+    if num_of_file == 1:
+        f = h5py.File(filename+'.hdf5', 'r')
+        if key1 == 'Header':
+            return f[key1].attrs[key2]
+        else:
+            return f[key1][key2][:]
+    else:
+        pbar=ProgressBar()
+        for i in pbar(range(0,num_of_file)):
+            f = h5py.File(filename+'.'+str(i)+'.hdf5', 'r')
+            if key1 == 'Header':
+                return f[key1].attrs[key2]
+            else:
+                if ( len(f[key1][key2][:].shape)==1 ):
+                    if i==0:
+                        result = f[key1][key2][:]
+                    else:
+                        result = np.hstack( (result,f[key1][key2][:]) )
+                else:
+                    if i==0:
+                        result = f[key1][key2][:]
+                    else:
+                        result = np.vstack( (result,f[key1][key2][:]) )
+        return result
+
 def read_snapshot_simple( filepath, particle_type='PartType0' ):
     import hp5y
     import pandas as pd

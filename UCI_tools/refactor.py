@@ -25,7 +25,11 @@ def replace_in_files_interactive(directory, old_string, new_string):
                                                          or d.startswith('__'))
                          ]
         for filename in files:
-            if filename.startswith('.') or filename.startswith('__'):
+            if (filename.startswith('.') 
+                or filename.startswith('__')
+                or (not filename.endswith('.py') 
+                    and not filename.endswith('.ipynb'))
+               ):
                 continue
             if filename == os.path.basename(__file__):
                 continue

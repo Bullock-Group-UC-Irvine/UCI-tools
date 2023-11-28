@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="UCI_tools",
-    version="0.2.2",
+    version="0.4.0",
     author="UCI Bullock Galaxy Dark Matter Group",
     author_email="bullock@uci.edu",
     description="Software tools developed by and commonly used by the group.",
@@ -26,5 +26,11 @@ setuptools.setup(
         'pytest',
         'mock',
         'h5py',
+        'progressbar'
     ],
+    entry_points={
+        'console_scripts': [
+            'UCI-tools.refactor = UCI_tools.refactor:main',
+        ],
+    }
 )
