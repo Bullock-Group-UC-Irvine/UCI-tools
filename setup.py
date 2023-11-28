@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="UCI_tools",
-    version="0.3.2",
+    version="0.3.3",
     author="UCI Bullock Galaxy Dark Matter Group",
     author_email="bullock@uci.edu",
     description="Software tools developed by and commonly used by the group.",

@@ -131,6 +131,10 @@ def get_data(filename, num_of_file, key1, key2):
         types have different datasets. If key1 is 'Header', key2 specifies the
         attribute to retrieve from the header.
         
+    Returns
+    -------
+    result
+        The data given by the specified file and keys
     '''
     import h5py
     import numpy as np
