@@ -294,3 +294,33 @@ def calc_cyl_vels(v_vecs_rot, coords_rot):
     ###################################################################
 
     return d
+
+def calc_temps(he_fracs, e_abundances, energies):
+    '''
+    Calculates temperatures of particles in Kelvin
+
+    Parameters
+    ----------
+    he_fracs: np.array, dtype = float
+        Helium fractions of the particles. In an h5py.Group particle_data in 
+        the FIRE files,
+        this data would be in particle_data['Metallicity'][:, 1].
+    e_abundances: np.array, dtype = float
+        Electron abundances of the particles
+    energies: np.array, dtype = float
+        Internal specific energies of the particles in units of km^2 / s^2.
+        (The InternalEnergy h5py.Dataset in the FIRE files is in km^2 / s^2.)
+
+    Returns
+    -------
+    Ts: np.array, dtype=astropy.Quantity
+        Array of astropy quantities with units of Kelvin
+    '''
+
+    y_hes = he_fracs / (4.*(1.-he_fracs))
+    mus = (1.+4.*y_hes) / (1+y_hes+e_abundances)
+    mean_molecular_weights = mus * c.m_p
+    gamma = 5./3. #adiabatic constant
+    Ts = mean_molecular_weights.si * (gamma-1.) * energies*u.km**2./u.s**2. \
+         / c.k_B
+    return Ts.to(u.K)
