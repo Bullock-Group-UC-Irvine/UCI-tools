@@ -317,6 +317,8 @@ def calc_temps(he_fracs, e_abundances, energies):
         Array of astropy quantities with units of Kelvin
     '''
 
+    from astropy import units as u, constants as c
+
     y_hes = he_fracs / (4.*(1.-he_fracs))
     mus = (1.+4.*y_hes) / (1+y_hes+e_abundances)
     mean_molecular_weights = mus * c.m_p
