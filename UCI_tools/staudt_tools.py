@@ -1,3 +1,118 @@
+def build_direcs(suffix, res, mass_class, typ='fire', source='original',
+                 min_radius=None, max_radius=None, cropped_run=None):
+    '''
+    Determine the directory where the halo file lives, the snapshot 600
+    directory, and the path to the snapshot files (which are in the snapshot
+    directory) excluding the file number suffix and file extension.
+
+    Parameters
+    ----------
+    suffix: str
+        The identifer for the desired galaxy, after the mass class. E.g. 'b'
+        for 'm12b' or '_elvis_RomeoJuliet' for 'm12_elvis_RomeoJuliet'.
+    res: int
+        The resolution of the file the user seeks.
+    mass_class: int
+        The log10(mass class / M_sun). E.g. 12 for the m12's.
+    typ: str, default 'fire'
+        The type of simulation. Choices are 'fire' or 'dmo'
+    source: str, default 'original'
+        The source location of the output files. Choices are 'original' and 
+        'cropped'.
+        'original' files include all particles at all radii and
+        are in 
+        /DFS-L/DATA/cosmo/grenache/aalazar/FIRE/. 'cropped' files include only
+        particles between `min_radius` and `max_radius` and are located in 
+        /DFS-L/DATA/cosmo/grenache/staudt/.
+    min_radius: float, default None
+        If source is 'cropped', the minimum radius of the files the user is
+        interested in. Leave as None if source is 'original'.
+    max_radius: float, default None
+        If source is 'cropped', the maximum radius of the files the user i
+        interested in. Leave as None if source is 'original.
+    cropped_run: str, default '202304'
+        Specify which iteration of the cropped files to look in. There are two
+        iterations right now because I need to make sure I didn't break
+        anything when I removed float128's from the program. I will later
+        remove this.
+
+    Returns
+    -------
+    hdirec: str
+        The path to the halo file for the specified galaxy
+    snapdir: str
+        The directory where the snapshot files live for the specified galaxy
+    almost_full_path: str
+        The path to the snapshot files (which are in the snapshot directory)
+        excluding the file number suffix and file extension.
+    num_files: int
+        The number of snapshot files in `snapdir`.
+    '''
+    assert typ in ['fire','dmo']
+    if source == 'cropped' and cropped_run is None:
+        # Using this folder while I make sure I'm not breaking anything by
+        # discontinuing the use of float128's
+        cropped_run = '202304'
+    if typ=='fire':
+        typ_char='B'
+        if source == 'cropped':
+            type_and_run = '_'.join([typ_char, cropped_run])
+        else:
+            type_and_run = typ_char
+    elif typ=='dmo':
+        typ_char='D'
+
+    res=str(res)
+    mass_class='{0:02d}'.format(mass_class)
+    snapnum = str(600)
+
+    if source=='original':
+        if min_radius is not None or max_radius is not None:
+            raise ValueError('radius limits are not applicable when '
+                             'source=\'original\'')
+        topdirec = '/DFS-L/DATA/cosmo/grenache/aalazar/'
+        cropstr = ''
+    elif source=='cropped':
+        if min_radius is None or max_radius is None:
+            raise ValueError('min and max radii must be specified if '
+                             'source=\'cropped\'')
+        topdirec = '/DFS-L/DATA/cosmo/grenache/staudt/'
+        cropstr = '{0:0.1f}_to_{1:0.1f}_kpc/'.format(min_radius, max_radius)
+    else:
+        raise ValueError('source should be \'original\' or \'cropped\'')
+    if int(mass_class)>10:
+        hdirec='/DFS-L/DATA/cosmo/grenache/aalazar/FIRE/GV'+typ_char+\
+               '/m'+mass_class+suffix+\
+               '_res'+res+\
+               '/halo/rockstar_dm/hdf5/halo_600.hdf5'
+        direc = (topdirec + 'FIRE/GV' + type_and_run + '/m' + mass_class 
+                 + suffix + '_res' + res 
+                 + '/output/' + cropstr + 'hdf5/')
+    elif int(mass_class)==10:
+        raise ValueError('Cannot yet handle log M < 11')
+        #The following code will not work, but I've leaving it for future
+        #development
+        if typ=='dmo':
+            raise ValueError('Cannot yet handle DMO for log M < 11')
+        path = '/data25/rouge/mercadf1/FIRE/m10x_runs/' #Path to m10x runs
+        run = 'h1160816' #input the run name
+        haloName = 'm'+mass_class+suffix #input the halo name within this run
+        pt = 'PartType1' #You can change this to whatever particle you want
+        hdirec=path+run+'/'+haloName+'/halo_pos.txt'
+        direc=path+run+'/output/snapshot_'+run+'_Z12_bary_box_152.hdf5'
+    else:
+        raise ValueError('Cannot yet handle log M < 10')
+
+    snapdir = direc+'snapdir_'+snapnum+'/'
+    try:
+        num_files=len(os.listdir(snapdir))
+    except:
+        num_files=None
+    #path to the snapshot directory PLUS the first part of the filename:
+    almost_full_path = snapdir+'snapshot_'+snapnum
+
+    return hdirec, snapdir, almost_full_path, num_files
+
 def init_df(mass_class=12):
     '''
     Initialize a dataframe specifying information about the file names and
