@@ -1,5 +1,5 @@
 def build_direcs(suffix, res, mass_class, typ='fire', source='original',
-                 min_radius=None, max_radius=None, cropped_run=None):
+                 min_radius=None, max_radius=None, cropped_run='202304'):
     '''
     Determine the directory where the halo file lives, the snapshot 600
     directory, and the path to the snapshot files (which are in the snapshot
@@ -31,10 +31,13 @@ def build_direcs(suffix, res, mass_class, typ='fire', source='original',
         If source is 'cropped', the maximum radius of the files the user i
         interested in. Leave as None if source is 'original.
     cropped_run: str, default '202304'
-        Specify which iteration of the cropped files to look in. There are two
-        iterations right now because I need to make sure I didn't break
-        anything when I removed float128's from the program. I will later
-        remove this.
+        Specify the name of the run that generated the cropped files of
+        interest.
+        For example, the directory containing cropped data that was rotated 
+        based on all 3 of stars, DM, and gas is 'GVB_202304'. In this case,
+        `cropped_run` was '202304'. The directory containing cropped data
+        rotated based on only stars is 'GVB_star_rot'. In this case, 
+        `cropped_run` was 'star_rot'.
 
     Returns
     -------
@@ -48,11 +51,10 @@ def build_direcs(suffix, res, mass_class, typ='fire', source='original',
     num_files: int
         The number of snapshot files in `snapdir`.
     '''
+    import os
+    import traceback
+
     assert typ in ['fire','dmo']
-    if source == 'cropped' and cropped_run is None:
-        # Using this folder while I make sure I'm not breaking anything by
-        # discontinuing the use of float128's
-        cropped_run = '202304'
     if typ=='fire':
         typ_char='B'
         if source == 'cropped':
@@ -106,7 +108,10 @@ def build_direcs(suffix, res, mass_class, typ='fire', source='original',
     snapdir = direc+'snapdir_'+snapnum+'/'
     try:
         num_files=len(os.listdir(snapdir))
-    except:
+    except Exception as e:
+        print('Warning: {0} encountered when counting snapshot files.'
+              ' Saving `num_files` as None.'.format(type(e).__name__))
+        traceback.print_exc()
         num_files=None
     #path to the snapshot directory PLUS the first part of the filename:
     almost_full_path = snapdir+'snapshot_'+snapnum
