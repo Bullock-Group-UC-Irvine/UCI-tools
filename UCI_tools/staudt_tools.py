@@ -1,5 +1,5 @@
 def build_direcs(suffix, res, mass_class, typ='fire', source='original',
-                 min_radius=None, max_radius=None, cropped_run='202304'):
+                 min_radius=None, max_radius=None, cropped_run=None):
     '''
     Determine the directory where the halo file lives, the snapshot 600
     directory, and the path to the snapshot files (which are in the snapshot
@@ -30,9 +30,9 @@ def build_direcs(suffix, res, mass_class, typ='fire', source='original',
     max_radius: float, default None
         If source is 'cropped', the maximum radius of the files the user i
         interested in. Leave as None if source is 'original.
-    cropped_run: str, default '202304'
+    cropped_run: str
         Specify the name of the run that generated the cropped files of
-        interest.
+        interest. The user must provide this if `source == 'cropped'`.
         For example, the directory containing cropped data that was rotated 
         based on all 3 of stars, DM, and gas is 'GVB_202304'. In this case,
         `cropped_run` was '202304'. The directory containing cropped data
@@ -54,6 +54,12 @@ def build_direcs(suffix, res, mass_class, typ='fire', source='original',
     import os
     import traceback
 
+    if source == 'cropped' and cropped_run is None:
+        raise ValueError(
+            'The user must specify the cropped_run if the source is'
+            ' \'cropped\''
+        )
+        
     assert typ in ['fire','dmo']
     if typ=='fire':
         typ_char='B'
