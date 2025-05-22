@@ -7,7 +7,7 @@ from . import tools as uci
 from . import staudt_tools
 from progressbar import ProgressBar
 
-def gen_gal_data(galname, cropped_run):
+def gen_gal_data(galname, cropped_run, save=True):
     '''
     Generate cropped data from the original hdf5 files for a particular
     galaxy. Data is cropped at a
@@ -61,8 +61,6 @@ def gen_gal_data(galname, cropped_run):
         `cropped_run` was 'star_rot'.
     '''
 
-    import dm_den
-
     print('Generating {0:s} data'.format(galname))
 
     min_radius = 0. #kpc
@@ -86,10 +84,14 @@ def gen_gal_data(galname, cropped_run):
     halodirec, snapdir_orig, almost_full_path_orig, num_files = orig_dir_res
     #cropped directory result:
     crop_dir_res = staudt_tools.build_direcs(
-            suffix_cropped, res, mass_class, typ,
-            source='cropped',
-            min_radius=0.,
-            max_radius=10.
+        suffix_cropped, 
+        res,
+        mass_class,
+        typ,
+        source='cropped',
+        min_radius=0.,
+        max_radius=10.,
+        cropped_run=cropped_run
     )
     _, snapdir_crop, almost_full_path_crop, _ = crop_dir_res
 
@@ -136,11 +138,13 @@ def gen_gal_data(galname, cropped_run):
                             d[key1][key2] = new_data
 
         # Getting host halo info
-        center_coord, rvir, v_halo, mvir = dm_den.get_halo_info(halodirec,
-                                                                suffix, 
-                                                                typ, 
-                                                                host_key, 
-                                                                mass_class)
+        center_coord, rvir, v_halo, mvir = uci.get_halo_info(
+            halodirec,
+            suffix, 
+            typ, 
+            host_key, 
+            mass_class
+        )
         h = f_crop['Header'].attrs['HubbleParam']
 
         for key1 in d.keys():

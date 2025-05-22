@@ -326,3 +326,67 @@ def calc_temps(he_fracs, e_abundances, energies):
     Ts = mean_molecular_weights.si * (gamma-1.) * energies*u.km**2./u.s**2. \
          / c.k_B
     return Ts.to(u.K)
+
+def get_halo_info(halodirec, suffix, typ, host_key, mass_class):
+    '''
+    Retrieve information for the given halo.
+
+    Parameters
+    ----------
+    halodirec: str
+        The directory containing the halo file
+    suffix: str
+        The last part of the halo file name specifying the relevent galaxy,
+        e.g. 'b' for m12b or '_elvis_RomeoJuliet' for the Romeo-Juliet pair.
+    typ: {'fire', 'dmo'}
+        Whether to use full FIRE or dark-matter only
+    host_key: {'host.index', 'host2.index'}
+        Which host in the host file to reference. The user would only use 
+        'host2.index' with pairs.
+    mass_class: int
+        The log(M/M_sun) class of the host.
+
+    Returns
+    -------
+    p: np.ndarray, shape (3,)
+        Physical coordinate of the center of the halo relative to the
+        simulation, in kpc
+    r: float
+        The virial radius of the halo, in kpc
+    v: np.ndarray, shape (3,)
+        The velocity of the halo
+    mvir: float
+        The virial mass of the halo in units of 1e10 M_sun
+    '''
+
+    import h5py
+    import numpy as np
+    
+    if mass_class>10: 
+        with h5py.File(halodirec,'r') as f:
+            isrj = suffix=='_elvis_RomeoJuliet'
+            istl = suffix=='_elvis_ThelmaLouise'
+            ishost2 = host_key=='host2.index'
+            isdmo = typ=='dmo'
+            if (isrj or (istl and isdmo)) and ishost2:
+                #RomeoJuliet doesn't have a halo2.index key
+                #ThelmaLouise doesn't have a halo2.index key in the dmo sims
+                ms_hals=f['mass.vir'][:]
+                is_sorted=np.argsort(ms_hals)
+                i=is_sorted[-2]
+            else:
+                i=f[host_key][0]
+            p=f['position'][i]
+            r=f['radius'][i] #Is this virial radius?
+            v=f['velocity'][i]
+            mvir = f['mass.vir'][i]
+    elif mass_class==10:
+        #I think this is going to need correcting. Will prob give an error.
+        hposList = np.loadtxt(path+run+'/'+haloName+'/halo_pos.txt')
+        p = hposList[0]
+        rvirList = np.loadtxt(path+run+'/'+haloName+'/halo_r_vir.txt')
+        r = rvirList[0]
+        mvir=np.nan #Don't have a saved value for mvir
+    else:
+        raise ValueError('Cannot yet handle log M < 10')
+    return p, r, v, mvir
