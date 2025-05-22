@@ -7,7 +7,16 @@ from . import tools as uci
 from . import staudt_tools
 from progressbar import ProgressBar
 
-def gen_gal_data(galname, cropped_run, save=True):
+class mydict(dict):
+    # Need this so I can add attributes to a dictionary
+    pass
+
+def gen_gal_data(
+        galname,
+        min_radius=None,
+        max_radius=None,
+        save=False,
+        cropped_run=None):
     '''
     Generate cropped data from the original hdf5 files for a particular
     galaxy. Data is cropped at a
@@ -52,6 +61,16 @@ def gen_gal_data(galname, cropped_run, save=True):
     ----------
     galname: str
         Name of the galaxy for which the method should generate cropped data
+    min_radius: float, default None
+        Particles below this radius in kpc will be excluded. The user will use
+        this for generating cropped data.
+    max_radius: float, default None
+        Particles beyond this radius in kpc will be exluded. The user will use
+        this for generating cropped data.
+    save: bool, default False
+        Whether to save the run into /DFS-L/DATA/cosmo/pstaudt/FIRE. This is
+        only relevent when we're cropping the data. If save == True, the user
+        must also specify a cropped_run name.
     cropped_run: str
         The suffix of the directory into which the method should save the data.
         For example, the directory containing cropped data that was rotated 
@@ -61,10 +80,12 @@ def gen_gal_data(galname, cropped_run, save=True):
         `cropped_run` was 'star_rot'.
     '''
 
-    print('Generating {0:s} data'.format(galname))
+    if save and cropped_run is None:
+        raise ValueError(
+            'If `save` is True, the user must specify a `cropped_run` name.'
+        )
 
-    min_radius = 0. #kpc
-    max_radius = 10. #kpc
+    print('Generating {0:s} data'.format(galname))
 
     df = staudt_tools.init_df()
 
@@ -82,129 +103,137 @@ def gen_gal_data(galname, cropped_run, save=True):
             cropped_run=cropped_run
     )
     halodirec, snapdir_orig, almost_full_path_orig, num_files = orig_dir_res
-    #cropped directory result:
-    crop_dir_res = staudt_tools.build_direcs(
-        suffix_cropped, 
-        res,
-        mass_class,
-        typ,
-        source='cropped',
-        min_radius=0.,
-        max_radius=10.,
-        cropped_run=cropped_run
-    )
-    _, snapdir_crop, almost_full_path_crop, _ = crop_dir_res
 
-    if not os.path.isdir(snapdir_crop):
-        os.makedirs(snapdir_crop)
-    with h5py.File(almost_full_path_crop+'.hdf5',
-                   'w') as f_crop:
-        d = {}
-        pbar=ProgressBar()
-        for i in pbar(range(0,num_files)):
-            with h5py.File(almost_full_path_orig+'.'+str(i)+'.hdf5', 'r') as f:
-                for key1 in f.keys():
-                    if key1=='Header':
-                        #Just directly copy f['Header'] into f_crop.
-                        #It should be the same for every snapshot subfile, so 
-                        #we
-                        #don't need to change it into a manageable object.
-                        if key1 in f_crop.keys():
-                            #We already have the header from the last snapshot
-                            #subfile.
-                            continue #move onto the next key1
-                        f.copy(key1,f_crop)
+    d = mydict() 
+    pbar=ProgressBar()
+    for i in pbar(range(0, num_files)):
+        with h5py.File(almost_full_path_orig+'.'+str(i)+'.hdf5', 'r') as f:
+            for key1 in f.keys():
+                if key1 == 'Header': 
+                    if hasattr(d, 'attrs'):
+                        # We only need to save the header attributes once. 
+                        # They'll 
+                        # be the same
+                        # in all snapshot files.
+                        continue # Move onto the next key1.
+                    else:
+                        d.attrs = {}
+                        for attr in f[key1].attrs.keys():
+                            # Extract the data from the 
+                            # `h5py._hl.attrs.AttributeManager`
+                            d.attrs[attr] = f[key1].attrs[attr]
                         continue #move onto the next key1
-                    if key1 not in d:
-                        #If this is the first run, initialize the 
-                        #sub-dictionary
-                        #corresponding to key1:
-                        d[key1]=dict()
-                    for key2 in f[key1].keys():
-                        #Extract the data from the `h5py._hl.group.Group`s
-                        new_data = f[key1][key2][:]
-                        # Getting rid of the following 2 lines that save masses
-                        # as float128's because it causes big problems with
-                        # MacOS.
-                        #if key2 in ['Masses']:
-                        #    new_data = new_data.astype(np.longdouble)
-                        if key2 in d[key1]:
-                            #If this isn't the first snapshot subfile, add the 
-                            #new
-                            #data to the data as of the last subfile.
-                            d[key1][key2] = np.concatenate((d[key1][key2], 
-                                                            new_data))
-                        else:
-                            d[key1][key2] = new_data
+                if key1 not in d:
+                    #If this is the first run, initialize the 
+                    #sub-dictionary
+                    #corresponding to key1:
+                    d[key1]=dict()
+                for key2 in f[key1].keys():
+                    #Extract the data from the `h5py._hl.group.Group`s
+                    new_data = f[key1][key2][:]
+                    if key2 in d[key1]:
+                        #If this isn't the first snapshot subfile, add the 
+                        #new
+                        #data to the data as of the last subfile.
+                        d[key1][key2] = np.concatenate((d[key1][key2], 
+                                                        new_data))
+                    else:
+                        d[key1][key2] = new_data
 
-        # Getting host halo info
-        center_coord, rvir, v_halo, mvir = uci.get_halo_info(
-            halodirec,
-            suffix, 
-            typ, 
-            host_key, 
-            mass_class
-        )
-        h = f_crop['Header'].attrs['HubbleParam']
+    # Getting host halo info
+    center_coord, rvir, v_halo, mvir = uci.get_halo_info(
+        halodirec,
+        suffix, 
+        typ, 
+        host_key, 
+        mass_class
+    )
 
-        for key1 in d.keys():
-            d[key1]['coord_phys'] = d[key1]['Coordinates']/h
-            d[key1]['coord_centered'] = d[key1]['coord_phys']-center_coord
-            d[key1]['v_vec_centered'] = d[key1]['Velocities']-v_halo
-            d[key1]['r'] = np.linalg.norm(d[key1]['coord_centered'], axis=1)
-            d[key1]['mass_phys'] = d[key1]['Masses']/h #units of 1e10 M_sun
+    h = d.attrs['HubbleParam']
+    for key1 in d.keys():
+        d[key1]['coord_phys'] = d[key1]['Coordinates']/h
+        d[key1]['coord_centered'] = d[key1]['coord_phys']-center_coord
+        d[key1]['v_vec_centered'] = d[key1]['Velocities']-v_halo
+        d[key1]['r'] = np.linalg.norm(d[key1]['coord_centered'], axis=1)
+        d[key1]['mass_phys'] = d[key1]['Masses']/h #units of 1e10 M_sun
 
+        if min_radius is not None or max_radius is not None:
             within_crop = (d[key1]['r'] <= max_radius) \
-                          & (d[key1]['r'] >= min_radius)
-
+                           & (d[key1]['r'] >= min_radius)
             for key2 in d[key1].keys():
                 d[key1][key2] = d[key1][key2][within_crop] #crop the dictionary
-        
-        #calculate temperatures
-        he_fracs = d['PartType0']['Metallicity'][:,1]
-        d['PartType0']['T'] = uci.calc_temps(he_fracs,
-                                                *[d['PartType0'][key] \
-                                                  for key in \
-                                                  ['ElectronAbundance',
-                                                   'InternalEnergy']])
+    
+    #calculate temperatures
+    he_fracs = d['PartType0']['Metallicity'][:,1]
+    d['PartType0']['T'] = uci.calc_temps(he_fracs,
+                                            *[d['PartType0'][key] \
+                                              for key in \
+                                              ['ElectronAbundance',
+                                               'InternalEnergy']])
 
-        # Get the rotation matrix using only stars.
-        rotation_matrix = rotate_galaxy.rotation_matrix_fr_dat(
-                *[flatten_particle_data(d, data, drop_particles=['PartType0',
-                                                                 'PartType1',
-                                                                 'PartType2',
-                                                                 'PartType3',
-                                                                 'PartType5']) 
-                  for data in ['coord_centered',
-                               'v_vec_centered',
-                               'mass_phys',
-                               'r']])
+    # Get the rotation matrix using only stars.
+    rotation_matrix = rotate_galaxy.rotation_matrix_fr_dat(
+        *[flatten_particle_data(
+              d,
+              data,
+              drop_particles=['PartType0',
+                              'PartType1',
+                              'PartType2',
+                              'PartType3',
+                              'PartType5'],
+              supress_warning=True)
+          for data in ['coord_centered',
+                       'v_vec_centered',
+                       'mass_phys',
+                       'r']]
+    )
 
-        for ptcl in d.keys(): #for each particle type
-            print('Rotating {0:s}'.format(ptcl))
-            d[ptcl]['v_vec_rot'] = rotate_galaxy.rotate(
-                    d[ptcl]['v_vec_centered'], rotation_matrix)
-            d[ptcl]['coord_rot'] = rotate_galaxy.rotate(
-                    d[ptcl]['coord_centered'], rotation_matrix)
-            # Add v_dot_phihat and other cylindrical velocity information
-            d[ptcl] = d[ptcl] | uci.calc_cyl_vels(d[ptcl]['v_vec_rot'],
-                                                  d[ptcl]['coord_rot'])
-            d[ptcl]['v_dot_zhat'] = d[ptcl]['v_vec_rot'][:,2]
+    for ptcl in d.keys(): #for each particle type
+        print('Rotating {0:s}'.format(ptcl))
+        d[ptcl]['v_vec_rot'] = rotate_galaxy.rotate(
+                d[ptcl]['v_vec_centered'], rotation_matrix)
+        d[ptcl]['coord_rot'] = rotate_galaxy.rotate(
+                d[ptcl]['coord_centered'], rotation_matrix)
+        # Add v_dot_phihat and other cylindrical velocity information
+        d[ptcl] = d[ptcl] | uci.calc_cyl_vels(d[ptcl]['v_vec_rot'],
+                                              d[ptcl]['coord_rot'])
+        d[ptcl]['v_dot_zhat'] = d[ptcl]['v_vec_rot'][:,2]
 
-            l = len(d[ptcl]['mass_phys'])
-            for key in d[ptcl].keys():
-                try:
-                    assert len(d[ptcl][key])==l
-                except:
-                    print('failed on '+key)
+        l = len(d[ptcl]['mass_phys'])
+        for key in d[ptcl].keys():
+            try:
+                assert len(d[ptcl][key])==l
+            except:
+                print('failed on '+key)
 
-        for ptcl in d.keys(): #for each particle type
-            f_crop.create_group(ptcl)
-            for key2 in d[ptcl].keys():
-                print('saving {0:s}, {1:s}'.format(ptcl,key2))
-                data = d[ptcl][key2]
-                f_crop[ptcl].create_dataset(key2, data=data, dtype=data.dtype)
-        print('')
+    if save:
+        #cropped directory result:
+        crop_dir_res = staudt_tools.build_direcs(
+            suffix_cropped, 
+            res,
+            mass_class,
+            typ,
+            source='cropped',
+            min_radius=min_radius,
+            max_radius=max_radius,
+            cropped_run=cropped_run
+        )
+        _, snapdir_crop, almost_full_path_crop, _ = crop_dir_res
+        if not os.path.isdir(snapdir_crop):
+            os.makedirs(snapdir_crop)
+        with h5py.File(almost_full_path_crop+'.hdf5',
+                       'w') as f_crop:
+            for ptcl in d.keys(): #for each particle type
+                f_crop.create_group(ptcl)
+                for key2 in d[ptcl].keys():
+                    print('saving {0:s}, {1:s}'.format(ptcl,key2))
+                    data = d[ptcl][key2]
+                    f_crop[ptcl].create_dataset(
+                        key2,
+                        data=data,
+                        dtype=data.dtype
+                    )
+            print('')
 
     return d 
 
@@ -226,11 +255,15 @@ def gen_all_gals_data(run_name):
     '''
     df = staudt_tools.init_df()
     for gal in df.index:
-        gen_gal_data(gal, run_name) 
+        gen_gal_data(gal, save=True, cropped_run=run_name) 
     
     return None
 
-def flatten_particle_data(d, data, drop_particles=['PartType2']):
+def flatten_particle_data(
+        d,
+        data,
+        drop_particles=['PartType2'],
+        supress_warning=False):
     '''
     Given a galaxy dictionary layered by particle in the same way as the 
     original hdf5
@@ -260,11 +293,14 @@ def flatten_particle_data(d, data, drop_particles=['PartType2']):
         pass
     for part in drop_particles:
         if part not in keys:
-            warnings.warn('{0:s} is not in the data, but the user'
-                          ' attempted to exclude it from a calculation. Ensure'
-                          ' there is not a typo in the `drop_particles` list.'
-                          ' Otherwise the code may be including a particle'
-                          ' type that should be excluded.'.format(part))
+            if not supress_warning:
+                warnings.warn(
+                    '\n{0:s} is not in the data, but the user'
+                    ' attempted to exclude it from a calculation. Ensure'
+                    ' there is not a typo in the `drop_particles` list.'
+                    ' Otherwise the code may be including a particle'
+                    ' type that should be excluded.'.format(part)
+                )
         else:
             keys.remove(part)
     data_flat = np.concatenate([d[parttype][data] for parttype in keys])
@@ -273,8 +309,7 @@ def flatten_particle_data(d, data, drop_particles=['PartType2']):
 
 def load_data(galname, getparts='all', verbose=True, cropped_run=None):
     '''
-    Load data from the new cropped hdf5 files, as opposed to the way we used to
-    load data from the original hdf5 files.
+    Load data from cropped hdf5 files, as opposed to theoriginal hdf5 files.
 
     Parameters
     ----------
@@ -324,9 +359,6 @@ def load_data(galname, getparts='all', verbose=True, cropped_run=None):
 
     with h5py.File(almost_full_path_crop+'.hdf5',
                    'r') as f:
-        class mydict(dict):
-            # Need this so I can add attributes to the dictionary
-            pass
         d = mydict()
         d.attrs = {}
         for attr in f['Header'].attrs.keys():

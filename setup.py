@@ -1,11 +1,12 @@
 import setuptools
+from UCI_tools import __version__
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="UCI_tools",
-    version="0.6.3-a6",
+    version=__version__,
     author="UCI Bullock Galaxy Dark Matter Group",
     author_email="bullock@uci.edu",
     description="Software tools developed by and commonly used by the group.",
