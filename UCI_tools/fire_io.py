@@ -243,8 +243,7 @@ def gen_gal_data(
 def gen_all_gals_data(run_name):
     '''
     Generate cropped data for all m12 galaxies from the original hdf5 files.
-    Data is cropped at a
-    certain radius from the center of the galaxies.
+    Data is cropped at 10 kpc from the center of the galaxies.
 
     Parameters
     ----------
@@ -258,7 +257,13 @@ def gen_all_gals_data(run_name):
     '''
     df = staudt_tools.init_df()
     for gal in df.index:
-        gen_gal_data(gal, save=True, cropped_run=run_name) 
+        gen_gal_data(
+            gal,
+            min_radius=0.,
+            max_radius=10.,
+            save=True,
+            cropped_run=run_name
+        )
     
     return None
 
