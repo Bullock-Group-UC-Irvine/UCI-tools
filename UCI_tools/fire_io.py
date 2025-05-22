@@ -223,6 +223,9 @@ def gen_gal_data(
             os.makedirs(snapdir_crop)
         with h5py.File(almost_full_path_crop+'.hdf5',
                        'w') as f_crop:
+            header = f_crop.create_group('Header')
+            for attr in d.attrs:
+                header.attrs[attr] = d.attrs[attr]
             for ptcl in d.keys(): #for each particle type
                 f_crop.create_group(ptcl)
                 for key2 in d[ptcl].keys():
@@ -307,7 +310,7 @@ def flatten_particle_data(
 
     return data_flat
 
-def load_data(galname, getparts='all', verbose=True, cropped_run=None):
+def load_cropped_data(galname, getparts='all', verbose=True, cropped_run=None):
     '''
     Load data from cropped hdf5 files, as opposed to theoriginal hdf5 files.
 
@@ -315,7 +318,7 @@ def load_data(galname, getparts='all', verbose=True, cropped_run=None):
     ----------
     galname: str
         The galaxy name string corresponding to an index in df.
-    getparts: list of str: {'PartType0' : 'PartType4'}
+    getparts: str or list of str, default 'all' 
         Specifies the particle types to extract
         'PartType0' is gas. 
         'PartType1' is dark matter.
@@ -323,9 +326,18 @@ def load_data(galname, getparts='all', verbose=True, cropped_run=None):
         'PartType3' is grains/PIC particles. 
         'PartType4' is stars. 
         'PartType5' is black holes / sinks.
-    verbose: bool
+    verbose: bool, default True
         If True, the function prints which galaxy its pulling with a progress
         bar.
+    cropped_run: str
+        Specify the name of the run that generated the cropped files of
+        interest. This is a kwarg, but it is mandatory that the user provide
+        it.
+        For example, the directory containing cropped data that was rotated 
+        based on all 3 of stars, DM, and gas is 'GVB_202304'. In this case,
+        `cropped_run` was '202304'. The directory containing cropped data
+        rotated based on only stars is 'GVB_star_rot'. In this case, 
+        `cropped_run` was 'star_rot'.
 
     Returns
     -------
@@ -351,10 +363,15 @@ def load_data(galname, getparts='all', verbose=True, cropped_run=None):
     typ = 'fire'
 
     #cropped directory result
-    crop_dir_res = build_direcs(suffix_cropped, res, mass_class, typ,
-                                   source='cropped',
-                                   min_radius=0.,
-                                   max_radius=10.)
+    crop_dir_res = build_direcs(
+        suffix_cropped,
+        res,
+        mass_class,
+        typ,
+        source='cropped',
+        min_radius=0.,
+        max_radius=10.,
+        cropped_run=cropped_run)
     _, snapdir_crop, almost_full_path_crop, _ = crop_dir_res
 
     with h5py.File(almost_full_path_crop+'.hdf5',
