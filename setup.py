@@ -20,12 +20,8 @@ setuptools.setup(
     ],
     install_requires=[
         'numpy',
-        'scipy',
         'pandas',
-	'seaborn',
-        'matplotlib',
         'pytest',
-        'mock',
         'h5py',
         'progressbar',
         'nbformat'
