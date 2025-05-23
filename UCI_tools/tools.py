@@ -382,6 +382,7 @@ def get_halo_info(halodirec, suffix, typ, host_key, mass_class):
             mvir = f['mass.vir'][i]
     elif mass_class==10:
         #I think this is going to need correcting. Will prob give an error.
+        path = '/data25/rouge/mercadf1/FIRE/m10x_runs/' #Path to m10x runs
         hposList = np.loadtxt(path+run+'/'+haloName+'/halo_pos.txt')
         p = hposList[0]
         rvirList = np.loadtxt(path+run+'/'+haloName+'/halo_r_vir.txt')
