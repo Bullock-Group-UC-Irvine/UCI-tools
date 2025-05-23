@@ -102,7 +102,8 @@ def build_direcs(suffix, res, mass_class, typ='fire', source='original',
         #development
         if typ=='dmo':
             raise ValueError('Cannot yet handle DMO for log M < 11')
-        path = '/data25/rouge/mercadf1/FIRE/m10x_runs/' #Path to m10x runs
+        #Path to m10x runs
+        path = '/DFS-L/DATA/cosmo/rouge/mercadf1/fire2/m10x_runs'
         run = 'h1160816' #input the run name
         haloName = 'm'+mass_class+suffix #input the halo name within this run
         pt = 'PartType1' #You can change this to whatever particle you want
