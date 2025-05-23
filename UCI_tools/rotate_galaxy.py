@@ -1,7 +1,7 @@
 import numpy as np
-import math
-import scipy.ndimage.interpolation as interpolate
-import struct
+#import math
+#import scipy.ndimage.interpolation as interpolate
+#import struct
 
 # ====================== function part ======================
 def checklen(x):
