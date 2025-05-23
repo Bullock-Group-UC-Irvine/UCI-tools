@@ -1,4 +1,4 @@
-from mock import patch
+#from mock import patch
 import numpy as np
 import numpy.testing as npt
 import unittest
@@ -32,7 +32,9 @@ class TestLoadFIREData( unittest.TestCase ):
     ########################################################################
 
     def test_error( self ):
-        '''This function tests if the code sends the proper error when it breaks.'''
+        '''
+        This function tests if the code sends the proper error when it breaks.
+        '''
 
         desired_msg = (
             'Cannot find snapshot at specified locations. '
@@ -59,9 +61,33 @@ class TestMisc( unittest.TestCase  ):
 
     def test_sft_to_ages( self ):
         npt.assert_allclose(tools.sft_to_ages(1), 0, atol = .15) #snapshot 600
-        npt.assert_allclose(tools.sft_to_ages(0.8550955), 13.79874688-11.69441659, atol = .15) #snapshot 500
-        npt.assert_allclose(tools.sft_to_ages(0.6958599), 13.79874688-9.19969494, atol = .15) #snapshot 400
-        npt.assert_allclose(tools.sft_to_ages(0.5366242), 13.79874688-6.58906279, atol = .15) #snapshot 300
-        npt.assert_allclose(tools.sft_to_ages(0.3777778), 13.79874688-4.04069309, atol = .15) #snapshot 200
-        npt.assert_allclose(tools.sft_to_ages(0.2187500), 13.79874688-1.81321181, atol = .15) #snapshot 100
-        npt.assert_allclose(tools.sft_to_ages(0.0100000), 13.79874688-0.01780470, atol = .15) #snapshot 0	
+        npt.assert_allclose(
+                tools.sft_to_ages(0.8550955),
+                13.79874688-11.69441659,
+                atol = .15
+            ) #snapshot 500
+        npt.assert_allclose(
+                tools.sft_to_ages(0.6958599),
+                13.79874688-9.19969494,
+                atol = .15
+            ) #snapshot 400
+        npt.assert_allclose(
+                ools.sft_to_ages(0.5366242),
+                13.79874688-6.58906279,
+                atol = .15
+            ) #snapshot 300
+        npt.assert_allclose(
+                tools.sft_to_ages(0.3777778),
+                13.79874688-4.04069309,
+                atol = .15
+            ) #snapshot 200
+        npt.assert_allclose(
+                tools.sft_to_ages(0.2187500),
+                13.79874688-1.81321181,
+                atol = .15
+            ) #snapshot 100
+        npt.assert_allclose(
+                tools.sft_to_ages(0.0100000),
+                13.79874688-0.01780470,
+                atol = .15
+            ) #snapshot 0	
