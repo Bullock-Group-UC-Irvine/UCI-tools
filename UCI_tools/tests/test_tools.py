@@ -18,7 +18,9 @@ class TestLoadFIREData( unittest.TestCase ):
         '''This test just ensures that the data can be loaded at all.'''
         import os
 
-        sim_dir = './tests/test_data/downsampled_sim_data/fire_sim/output'
+        sim_dir = (
+            './UCI_tools/tests/test_data/downsampled_sim_data/fire_sim/output'
+        )
         snapshot = 600
         path = os.path.join(
             sim_dir,
