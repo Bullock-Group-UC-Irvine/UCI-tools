@@ -24,7 +24,8 @@ setuptools.setup(
         'pytest',
         'h5py',
         'progressbar',
-        'nbformat'
+        'nbformat',
+        'astropy'
     ],
     entry_points={
         'console_scripts': [
