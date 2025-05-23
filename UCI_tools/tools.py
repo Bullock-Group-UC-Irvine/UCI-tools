@@ -166,7 +166,7 @@ def get_data(filename, num_of_file, key1, key2):
         return result
 
 def read_snapshot_simple( filepath, particle_type='PartType0' ):
-    import hp5y
+    import h5py
     import pandas as pd
 
     f = h5py.File( filepath, 'r' )
