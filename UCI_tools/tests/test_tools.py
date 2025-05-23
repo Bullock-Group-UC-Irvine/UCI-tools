@@ -72,7 +72,7 @@ class TestMisc( unittest.TestCase  ):
                 atol = .15
             ) #snapshot 400
         npt.assert_allclose(
-                ools.sft_to_ages(0.5366242),
+                tools.sft_to_ages(0.5366242),
                 13.79874688-6.58906279,
                 atol = .15
             ) #snapshot 300
