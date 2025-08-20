@@ -2,24 +2,88 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from FIRE_routine import *
 
-gas_num = 50
-star_num = 20
 snap = ['153']
-snapshot_times = np.loadtxt('/export/nfs0home/omyrtaj/code/snapshot_times/snapshot_times.txt')
-times = np.array([float(snapshot_times[int(snap[i])][3]) for i in range(len(snap))])
-a = np.array([float(snapshot_times[int(snap[i])][1]) for i in range(len(snap))])
 
-lbt = np.abs(times - 13.8)
+def get_m12_path(simname, snap):
+    '''
+    Parameters
+    ----------
+    simname: {
+        'm12b_res7100',
+        'm12c_res7100',
+        'm12_elvis_RomeoJuliet_res3500',
+        'm12_elvis_RomulusRemus_res4000',
+        'm12_elvis_ThelmaLouise_res4000',
+        'm12f_res7100',
+        'm12i_res7100',
+        'm12m_res7100',
+        'm12r_res7100'
+    }
+        Name of the simulation to load.
+    snap: str
+        The snapshot number to load. The snapshot number should be in
+        string format.
 
-def plot():
+    Returns
+    -------
+    path: str
+        The path to the file being analyzed.
+    '''
+    import os
+    path = os.path.join(
+        '/DFS-L/DATA/cosmo/grenache/omyrtaj/analysis_data/metaldiff/',
+        simname,
+        'id_jnet_jzjc_jjc_'
+            + snap
+            + '_host0_20kpc_rockstar_centers_metaldiff.hdf5'
+    )
+    return path
+
+def plot(
+        simname, 
+        snap,
+        gas_num=50,
+        star_num=20):
+    '''
+    Parameters
+    ----------
+    simname: {
+        'm12b_res7100',
+        'm12c_res7100',
+        'm12_elvis_RomeoJuliet_res3500',
+        'm12_elvis_RomulusRemus_res4000',
+        'm12_elvis_ThelmaLouise_res4000',
+        'm12f_res7100',
+        'm12i_res7100',
+        'm12m_res7100',
+        'm12r_res7100'
+    }
+        Name of the simulation to load.
+    snap: str
+        The snapshot number to load. The snapshot number should be in
+        string format.
+    gas_num: int
+        The minimum number of gas particles a 2d histogram bin must have
+        for it to be included.
+    star_num: int
+        The minimum number of star particles a 2d histogram bin must have for
+        it to be included.
+    '''
+
+    from . import paths
+
+    snapshot_times = np.loadtxt(
+        '/export/nfs0home/omyrtaj/code/snapshot_times/snapshot_times.txt'
+    )
+    time = float(snapshot_times[int(snap)][3])
+    a = float(snapshot_times[int(snap[i])][1])
+    lbt = np.abs(time - 13.8)
+
     # Load gas data
+    path = get_m12_path(simname, snap)
     data = h5py.File(
-        '/DFS-L/DATA/cosmo/grenache/omyrtaj/analysis_data/metaldiff/'
-            'm12_elvis_ThelmaLouise_res4000/id_jnet_jzjc_jjc_'
-            + snap[0]
-            + '_host0_20kpc_rockstar_centers_metaldiff.hdf5',
+        path,
         'r'
     )
 
@@ -56,10 +120,14 @@ def plot():
 
     nbins_gas = 100
     # Create 2D histogram for gas
-    hist_gas, x_edges_gas, z_edges_gas = np.histogram2d(x_gas, z_gas, bins=nbins_gas)
+    hist_gas, x_edges_gas, z_edges_gas = np.histogram2d(
+        x_gas,
+        z_gas,
+        bins=nbins_gas
+    )
     hist_gas += 1  # Avoid log(0)
 
-    # Apply the mask to keep bins with at least 1000 gas particles
+    # Apply the mask to keep bins with at least `gas_num` gas particles
     mask_gas = hist_gas >= gas_num
 
     # Bin the v_y values for gas and create a colormap based on the average v_y in each bin
@@ -111,7 +179,7 @@ def plot():
     hist_star, x_edges_star, z_edges_star = np.histogram2d(x_star, z_star, bins=nbins_star)
     hist_star += 1  # Avoid log(0)
 
-    # Apply the mask to keep bins with at least 1000 star particles
+    # Apply the mask to keep bins with at least `star_num` star particles
     mask_star = hist_star >= star_num
 
     # Bin the v_y values for stars and create a colormap based on the average v_y in each bin
@@ -151,11 +219,41 @@ def plot():
     fig.colorbar(pcol_star, ax=ax[1], label=r'Star LOS Velocity [kms$^{-1}]$')
 
     # Add labels and text
-    ax[0].text(0.9, 0.9, 'Gas', transform=ax[0].transAxes, fontsize=16, color='k', ha='right')
-    ax[1].text(0.9, 0.9, 'Young stars', transform=ax[1].transAxes, fontsize=16, color='k', ha='right')
+    ax[0].text(
+        0.9,
+        0.9,
+        'Gas',
+        transform=ax[0].transAxes,
+        fontsize=16,
+        color='k',
+        ha='right'
+    )
+    ax[1].text(
+        0.9,
+        0.9,
+        'Young stars',
+        transform=ax[1].transAxes,
+        fontsize=16,
+        color='k',
+        ha='right'
+    )
 
-    ax[0].text(0.1, 0.95, 'Thelma', transform=ax[0].transAxes, color='k', fontsize=16)
-    ax[0].text(0.1, 0.9, 'LBT = ' + str(np.round(lbt[0], 2)) + ' Gyr', transform=ax[0].transAxes, color='k', fontsize=14)
+    ax[0].text(
+        0.1,
+        0.95,
+        'Thelma',
+        transform=ax[0].transAxes,
+        color='k',
+        fontsize=16
+    )
+    ax[0].text(
+        0.1,
+        0.9,
+        'LBT = ' + str(np.round(lbt[0], 2)) + ' Gyr',
+        transform=ax[0].transAxes,
+        color='k',
+        fontsize=14
+    )
 
     # Axis labels
     ax[0].set_ylabel('Z [kpc]', fontsize=16)
@@ -169,5 +267,55 @@ def plot():
     # Tight layout and spacing
     plt.tight_layout()
 
-    plt.savefig('plot_vel_map_thelma_3.pdf')
+    plt.savefig(os.path.join(paths.figures, 'plot_vel_map_thelma_3.pdf'))
     plt.show()
+
+    return None
+
+def parse_args():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Make a velocity map for the given simulation and snapshot."
+        )
+    )
+
+    parser.add_argument(
+        "-s", "--simname",
+        required=True,
+        help="Name of the simulation."
+    )
+
+    parser.add_argument(
+        "-n", "--snap",
+        type=str,
+        required=True,
+        help="Snapshot number in string format."
+    )
+
+    parser.add_argument(
+        "-g", "--gas_num",
+        type=int,
+        required=True,
+        help=(
+            'Number of gas particles that must be in a 2d histogram bin in'
+            ' order for the plot to include it.'
+        )
+    )
+
+    parser.add_argument(
+        "-t", "--star_num",
+        type=int,
+        required=True,
+        help=(
+            'Number of star particles that must be in a 2d histogram bin in'
+            ' order for the plot to include it.'
+        )
+    )
+
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    args = parse_args()
+    plot(args.simname, args.snap, args.gas_num, args.star_num)
