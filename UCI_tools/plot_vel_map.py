@@ -2,6 +2,7 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+from .rotate_galaxy import calculate_ang_mom, calculate_rotation_matrix
 
 snap = ['153']
 
@@ -74,10 +75,10 @@ def plot(
     from . import paths
 
     snapshot_times = np.loadtxt(
-        '/export/nfs0home/omyrtaj/code/snapshot_times/snapshot_times.txt'
+        '/DFS-L/DATA/cosmo/grenache/omyrtaj/fofie/snapshot_times.txt'
     )
     time = float(snapshot_times[int(snap)][3])
-    a = float(snapshot_times[int(snap[i])][1])
+    a = float(snapshot_times[int(snap)][1])
     lbt = np.abs(time - 13.8)
 
     # Load gas data
