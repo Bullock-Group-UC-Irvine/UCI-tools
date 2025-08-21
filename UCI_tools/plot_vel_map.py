@@ -1,11 +1,3 @@
-import h5py
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-from .rotate_galaxy import calculate_ang_mom, calculate_rotation_matrix
-
-snap = ['153']
-
 def get_m12_path(simname, snap):
     '''
     Parameters
@@ -64,15 +56,25 @@ def plot(
     snap: str
         The snapshot number to load. The snapshot number should be in
         string format.
-    gas_num: int
+    gas_num: int, default 50
         The minimum number of gas particles a 2d histogram bin must have
         for it to be included.
-    star_num: int
+    star_num: int, default 20
         The minimum number of star particles a 2d histogram bin must have for
         it to be included.
     '''
 
+    import os
+    import h5py
+    import numpy as np
+
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as colors
+
     from . import paths
+
+    from . import rotate_galaxy
+    from .rotate_galaxy import calculate_ang_mom, cal_rotation_matrix
 
     snapshot_times = np.loadtxt(
         '/DFS-L/DATA/cosmo/grenache/omyrtaj/fofie/snapshot_times.txt'
@@ -102,8 +104,8 @@ def plot(
     jnet_gas = calculate_ang_mom(mass_gas,pos_gas,vel_gas)
 
     r_matrix_gas = cal_rotation_matrix(jnet_gas, np.array((0.0, 0.0, 1.0)))
-    pos_gas = rotate_matrix(pos_gas, r_matrix_gas)
-    vel_gas = rotate_matrix(vel_gas, r_matrix_gas)
+    pos_gas = rotate_galaxy.rotate(pos_gas, r_matrix_gas)
+    vel_gas = rotate_galaxy.rotate(vel_gas, r_matrix_gas)
 
     v_gas = np.linalg.norm(vel_gas, axis=1)
     v_max = 220
@@ -131,7 +133,8 @@ def plot(
     # Apply the mask to keep bins with at least `gas_num` gas particles
     mask_gas = hist_gas >= gas_num
 
-    # Bin the v_y values for gas and create a colormap based on the average v_y in each bin
+    # Bin the v_y values for gas and create a colormap based on the average 
+    # v_y in each bin
     x_bin_indices_gas = np.digitize(x_gas, x_edges_gas) - 1
     z_bin_indices_gas = np.digitize(z_gas, z_edges_gas) - 1
     v_y_colormap_gas = np.zeros_like(hist_gas)
@@ -159,8 +162,8 @@ def plot(
     jnet_star = np.array(data['jnet_young_star'])
 
     r_matrix_star = cal_rotation_matrix(jnet_star, np.array((0.0, 0.0, 1.0)))
-    pos_star = rotate_matrix(pos_star, r_matrix_star)
-    vel_star = rotate_matrix(vel_star, r_matrix_star)
+    pos_star = rotate_galaxy.rotate(pos_star, r_matrix_star)
+    vel_star = rotate_galaxy.rotate(vel_star, r_matrix_star)
 
     v_star = np.linalg.norm(vel_star, axis=1)
     aux = v_star <= v_max
@@ -177,13 +180,18 @@ def plot(
 
     nbins_star = 100
     # Create 2D histogram for stars
-    hist_star, x_edges_star, z_edges_star = np.histogram2d(x_star, z_star, bins=nbins_star)
+    hist_star, x_edges_star, z_edges_star = np.histogram2d(
+        x_star,
+        z_star,
+        bins=nbins_star
+    )
     hist_star += 1  # Avoid log(0)
 
     # Apply the mask to keep bins with at least `star_num` star particles
     mask_star = hist_star >= star_num
 
-    # Bin the v_y values for stars and create a colormap based on the average v_y in each bin
+    # Bin the v_y values for stars and create a colormap based on the average 
+    # v_y in each bin
     x_bin_indices_star = np.digitize(x_star, x_edges_star) - 1
     z_bin_indices_star = np.digitize(z_star, z_edges_star) - 1
     v_y_colormap_star = np.zeros_like(hist_star)
@@ -210,10 +218,24 @@ def plot(
     vmin = -1*vmax
 
     # Plot gas with colormap based on v_y_gas
-    pcol_gas = ax[0].pcolormesh(x_edges_gas, z_edges_gas, v_y_colormap_gas.T, cmap=plt.cm.seismic_r, vmin=vmin, vmax=vmax)
+    pcol_gas = ax[0].pcolormesh(
+        x_edges_gas,
+        z_edges_gas,
+        v_y_colormap_gas.T,
+        cmap=plt.cm.seismic_r,
+        vmin=vmin,
+        vmax=vmax
+    )
 
     # Plot stars with colormap based on v_y_star
-    pcol_star = ax[1].pcolormesh(x_edges_star, z_edges_star, v_y_colormap_star.T, cmap=plt.cm.seismic_r, vmin=vmin, vmax=vmax)
+    pcol_star = ax[1].pcolormesh(
+        x_edges_star,
+        z_edges_star,
+        v_y_colormap_star.T,
+        cmap=plt.cm.seismic_r,
+        vmin=vmin,
+        vmax=vmax
+    )
 
     # Add colorbars for both plots
     fig.colorbar(pcol_gas, ax=ax[0], label=r'Gas LOS Velocity [kms$^{-1}]$')
@@ -242,7 +264,7 @@ def plot(
     ax[0].text(
         0.1,
         0.95,
-        'Thelma',
+        simname,
         transform=ax[0].transAxes,
         color='k',
         fontsize=16
@@ -250,7 +272,7 @@ def plot(
     ax[0].text(
         0.1,
         0.9,
-        'LBT = ' + str(np.round(lbt[0], 2)) + ' Gyr',
+        'LBT = ' + str(np.round(lbt, 2)) + ' Gyr',
         transform=ax[0].transAxes,
         color='k',
         fontsize=14
@@ -260,15 +282,38 @@ def plot(
     ax[0].set_ylabel('Z [kpc]', fontsize=16)
     for i in range(len(ax)):
         ax[i].set_xlabel('X [kpc]', fontsize=16)
-        ax[i].tick_params(axis='x', direction='in', pad=10, which='both', top=True, bottom=True, color='k', length = 6, width = 1.3)
-        ax[i].tick_params(axis='y', direction='in', pad=10, which='both', left=True, right=True, color='k', length = 6, width = 1.3)
+        ax[i].tick_params(
+            axis='x',
+            direction='in',
+            pad=10,
+            which='both',
+            top=True,
+            bottom=True,
+            color='k',
+            length = 6,
+            width = 1.3
+        )
+        ax[i].tick_params(
+            axis='y',
+            direction='in',
+            pad=10,
+            which='both',
+            left=True,
+            right=True,
+            color='k',
+            length = 6,
+            width = 1.3
+        )
         ax[i].set_xlim(-17.5, 17.5)
         ax[i].set_ylim(-17.5, 17.5)
 
     # Tight layout and spacing
     plt.tight_layout()
 
-    plt.savefig(os.path.join(paths.figures, 'plot_vel_map_thelma_3.pdf'))
+    plt.savefig(os.path.join(
+        paths.figures, 
+        'plot_vel_map_{0}.pdf'.format(simname)
+    ))
     plt.show()
 
     return None
