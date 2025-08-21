@@ -1,4 +1,4 @@
-def get_m12_path(simname, snap):
+def get_m12_path(simname, host_idx, snap):
     '''
     Parameters
     ----------
@@ -14,6 +14,10 @@ def get_m12_path(simname, snap):
         'm12r_res7100'
     }
         Name of the simulation to load.
+    host_idx: int
+        The index of the host to analyze in the given simulation. For Latte
+        runs, this should always be 0. For Elvis pairs, the index will either
+        be 0 or 1 depending on which of the the pair the user wants to analyze.
     snap: str
         The snapshot number to load. The snapshot number should be in
         string format.
@@ -29,12 +33,15 @@ def get_m12_path(simname, snap):
         simname,
         'id_jnet_jzjc_jjc_'
             + snap
-            + '_host0_20kpc_rockstar_centers_metaldiff.hdf5'
+            + '_host'
+            + str(host_idx)
+            + '_20kpc_rockstar_centers_metaldiff.hdf5'
     )
     return path
 
 def plot(
         simname, 
+        host_idx,
         snap,
         gas_num=50,
         star_num=20):
@@ -53,6 +60,10 @@ def plot(
         'm12r_res7100'
     }
         Name of the simulation to load.
+    host_idx: int
+        The index of the host to analyze in the given simulation. For Latte
+        runs, this should always be 0. For Elvis pairs, the index will either
+        be 0 or 1 depending on which of the the pair the user wants to analyze.
     snap: str
         The snapshot number to load. The snapshot number should be in
         string format.
@@ -84,7 +95,7 @@ def plot(
     lbt = np.abs(time - 13.8)
 
     # Load gas data
-    path = get_m12_path(simname, snap)
+    path = get_m12_path(simname, host_idx, snap)
     data = h5py.File(
         path,
         'r'
@@ -262,9 +273,9 @@ def plot(
     )
 
     ax[0].text(
+        0.02,
         0.1,
-        0.95,
-        simname,
+        '{0}\nhost{1:0.0f}'.format(simname, host_idx),
         transform=ax[0].transAxes,
         color='k',
         fontsize=16
@@ -312,56 +323,8 @@ def plot(
 
     plt.savefig(os.path.join(
         paths.figures, 
-        'plot_vel_map_{0}.pdf'.format(simname)
+        'plot_vel_map_{0}_host{1:0.0f}.pdf'.format(simname, host_idx)
     ))
     plt.show()
 
     return None
-
-def parse_args():
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description=(
-            "Make a velocity map for the given simulation and snapshot."
-        )
-    )
-
-    parser.add_argument(
-        "-s", "--simname",
-        required=True,
-        help="Name of the simulation."
-    )
-
-    parser.add_argument(
-        "-n", "--snap",
-        type=str,
-        required=True,
-        help="Snapshot number in string format."
-    )
-
-    parser.add_argument(
-        "-g", "--gas_num",
-        type=int,
-        required=True,
-        help=(
-            'Number of gas particles that must be in a 2d histogram bin in'
-            ' order for the plot to include it.'
-        )
-    )
-
-    parser.add_argument(
-        "-t", "--star_num",
-        type=int,
-        required=True,
-        help=(
-            'Number of star particles that must be in a 2d histogram bin in'
-            ' order for the plot to include it.'
-        )
-    )
-
-    return parser.parse_args()
-
-if __name__ == '__main__':
-    args = parse_args()
-    plot(args.simname, args.snap, args.gas_num, args.star_num)
