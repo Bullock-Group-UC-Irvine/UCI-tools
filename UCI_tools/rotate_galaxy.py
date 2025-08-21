@@ -1,26 +1,12 @@
 import numpy as np
-#import math
-#import scipy.ndimage.interpolation as interpolate
-#import struct
+
+# Importing this here in case anything that uses this package expects 
+# coord_to_r to be accessible from UCI_tools.rotate_galaxy
+from .fire_tools import coord_to_r
 
 # ====================== function part ======================
 def checklen(x):
     return len(np.array(x,ndmin=1));
-
-def coord_to_r(coord, cen_coord = np.zeros(3)):
-    ''' 
-    Calculate distance given coordinates.
-    Provide cen_coord to calculate distance to that particular center coordinate,
-    otherwise, the center is set to (0,0,0) by default  
-    '''
-    if (len(coord.shape) == 1): 
-        return np.sqrt(np.sum(np.square(coord-cen_coord)))
-    elif (coord.shape[1]==3):
-        #return np.sqrt(np.sum(np.square(coord-cen_coord),axis=1))
-        print('Shape is as expected.')
-        return np.linalg.norm(coord-cen_coord,axis=1)
-    else:
-        return np.sqrt(np.sum(np.square(coord.T-cen_coord),axis=1))
 
 def calculate_ang_mom(mass,coord,vel):
     '''

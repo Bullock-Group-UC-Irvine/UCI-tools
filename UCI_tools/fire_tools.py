@@ -804,8 +804,27 @@ def assign_hosts_coordinates_from_particles(
 #==============================================================================
 #===========Functions to Rotate the system to z-axis===========================
 
+def coord_to_r(coord, cen_coord = np.zeros(3)):
+    ''' 
+    Calculate distance given coordinates.
+    Provide cen_coord to calculate distance to that particular center 
+    coordinate,
+    otherwise, the center is set to (0,0,0) by default  
+    '''
+    if (len(coord.shape) == 1): 
+        return np.sqrt(np.sum(np.square(coord-cen_coord)))
+    elif (coord.shape[1]==3):
+        #return np.sqrt(np.sum(np.square(coord-cen_coord),axis=1))
+        print('Shape is as expected.')
+        return np.linalg.norm(coord-cen_coord,axis=1)
+    else:
+        return np.sqrt(np.sum(np.square(coord.T-cen_coord),axis=1))
+
 def cal_vr_vt(coord, vel):
-    #Calculate radial velcity and tangential velocity
+    '''
+    Calculate radial velcity and tangential velocity
+    '''
+    from . import rotate_galaxy
 
     if coord.shape!=vel.shape:
         raise ValueError('Coordinates shape does not match velocity shape!')
@@ -815,7 +834,7 @@ def cal_vr_vt(coord, vel):
             vr = np.sum(coord*vel, axis = 1)/coord_to_r(coord)
         else:
             vr = np.sum(coord*vel, axis = 0)/coord_to_r(coord)
-        vt = np.sqrt( np.square(coord_to_r(vel)) - np.square(vr) )
+        vt = np.sqrt(np.square(coord_to_r(vel)) - np.square(vr))
         return vr, vt
 
 def norm_vec(v):
