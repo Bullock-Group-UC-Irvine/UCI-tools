@@ -1,29 +1,17 @@
 import numpy as np
-#import math
-#import scipy.ndimage.interpolation as interpolate
-#import struct
+
+# Importing this here in case anything that uses this package expects 
+# coord_to_r to be accessible from UCI_tools.rotate_galaxy
+from .fire_tools import coord_to_r
 
 # ====================== function part ======================
 def checklen(x):
     return len(np.array(x,ndmin=1));
 
-def coord_to_r(coord, cen_coord = np.zeros(3)):
-    
-    # Calculate distance given coordinates;
-    # Provide cen_coord to calculate distance to this one center coordinate,
-    # otherwise, the center is set to (0,0,0) by default  
-    if (len(coord.shape) == 1): 
-        return np.sqrt(np.sum(np.square(coord-cen_coord)))
-    elif (coord.shape[1]==3):
-        #return np.sqrt(np.sum(np.square(coord-cen_coord),axis=1))
-        print('Shape is as expected.')
-        return np.linalg.norm(coord-cen_coord,axis=1)
-    else:
-        return np.sqrt(np.sum(np.square(coord.T-cen_coord),axis=1))
-
 def calculate_ang_mom(mass,coord,vel):
-
-    # Calculate angular momentum given mass, coordinates and velocities
+    '''
+    Calculate angular momentum given mass, coordinates and velocities
+    '''
     if coord.shape[1]!=3:
         coord = coord.T
         vel = vel.T
@@ -84,22 +72,34 @@ def vrrotvec2mat(r):
         (t*x*z - s*y, t*y*z + s*x, t*z*z + c)) )
     return m
 
-def rotation_matrix_fr_vecs(a,b):
-
-    # Calculate rotation matrix that can rotate vector a to vector b
+def rotation_matrix_fr_vecs(a, b):
+    '''
+    Calculate rotation matrix that can rotate vector a to vector b
+    '''
 
     return vrrotvec2mat(vrrotvec(a,b))
 
-def rotate(data,r):
+# Alias
+cal_rotation_matrix = rotation_matrix_fr_vecs
 
-    # Rotate data with rotation matrix r
+def rotate(data, r):
+    '''
+    Rotate data with rotation matrix r
+    '''
 
     if data.shape[1]!=3:
         return np.dot(r,data)
     else:
         return np.dot(r,data.T).T
 
+# Alias
+rotate_matrix = rotate
+
 def rotation_matrix_fr_dat(coords_centered, v_vecs, masses, rs):
+    '''
+    Generate a rotation matrix from a galaxy's data
+    '''
+
     # choose the stars within 10 kpc (or your choice of distance) 
     # from the center to calculate the disk orientation
     print('Masking')
@@ -108,9 +108,11 @@ def rotation_matrix_fr_dat(coords_centered, v_vecs, masses, rs):
     # calculate the average 3D angular momentum of the stars within 10 kpc
     # which is also the rotation axis
     print('Calculating angular momentum')
-    disk_ang = calculate_ang_mom(masses[center_mask], \
-                                 coords_centered[center_mask,:], \
-                                 v_vecs[center_mask,:])
+    disk_ang = calculate_ang_mom(
+        masses[center_mask],
+        coords_centered[center_mask,:],
+        v_vecs[center_mask,:]
+    )
     print('angular momentum:')
     print(disk_ang)
     print('')
@@ -118,31 +120,35 @@ def rotation_matrix_fr_dat(coords_centered, v_vecs, masses, rs):
     # calculate the rotation matrix that can rotate the galaxy so that
     # the rotation axis aligns with the Z axis
     print('Calculating rotation matrix')
-    rotation_matrix = rotation_matrix_fr_vecs(disk_ang ,
-                                              np.array((0.0,0.0,1.0)))
+    rotation_matrix = rotation_matrix_fr_vecs(
+        disk_ang,
+        np.array((0.0, 0.0, 1.0))
+    )
 
     return rotation_matrix
 
 def rotate_gal(coords_centered, v_vecs, masses, rs):
-    # numpy array of the coordinates of the stars, with galaxy centered at 
-    # (0,0,0)
-    # preferred shape (number_of_particles,3)
-    #coord = np.array()
-
-    # numpy array of the velocities of the stars, with respective to the galaxy 
-    # center 
-    # preferred shape (number_of_particles,3)
-    #v_vecs = np.array()
-
-    # numpy array of star mass
-    #masses = np.array()
+    '''
+    Parameters
+    ----------
+    coords_centered: np.ndarray of shape (number_of_parties, 3)
+        coordinates of the stars, with galaxy centered at 
+        (0,0,0)
+    v_vecs: np.ndarray of shape (number_of_particles, 3)
+        velocities of the stars, with respective to the galaxy 
+        center 
+    masses: np.ndarray of shape (number_of_particles,)
+        Star masses
+    rs: np.ndarray of shape (number_of_particles,)
+        3D distances of the stars from the center of the galaxy
+    '''
 
     rotation_matrix = rotation_matrix_fr_dat(coords_centered, v_vecs, 
                                                  masses, rs)
 
     # get the new coordinates where the stellar disk lies in the XY plane
     print('Rotating')
-    coord_rotated = rotate(coords_centered,rotation_matrix)
-    v_vecs_rotated = rotate(v_vecs,rotation_matrix)
+    coord_rotated = rotate(coords_centered, rotation_matrix)
+    v_vecs_rotated = rotate(v_vecs, rotation_matrix)
 
     return coord_rotated, v_vecs_rotated
