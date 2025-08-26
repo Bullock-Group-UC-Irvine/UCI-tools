@@ -1,8 +1,8 @@
-def get_m12_path(simname, host_idx, snap):
+def get_m12_path(sim_name, host_idx, snap):
     '''
     Parameters
     ----------
-    simname: {
+    sim_name: {
         'm12b_res7100',
         'm12c_res7100',
         'm12_elvis_RomeoJuliet_res3500',
@@ -20,7 +20,7 @@ def get_m12_path(simname, host_idx, snap):
         be 0 or 1 depending on which of the the pair the user wants to analyze.
     snap: str
         The snapshot number to load. The snapshot number should be in
-        string format.
+        string format with three digits.
 
     Returns
     -------
@@ -30,7 +30,7 @@ def get_m12_path(simname, host_idx, snap):
     import os
     path = os.path.join(
         '/DFS-L/DATA/cosmo/grenache/omyrtaj/analysis_data/metaldiff/',
-        simname,
+        sim_name,
         'id_jnet_jzjc_jjc_'
             + snap
             + '_host'
@@ -40,33 +40,27 @@ def get_m12_path(simname, host_idx, snap):
     return path
 
 def plot(
-        simname, 
-        host_idx,
+        sim_path, 
+        display_name
         snap,
         gas_num=50,
         star_num=20):
     '''
     Parameters
     ----------
-    simname: {
-        'm12b_res7100',
-        'm12c_res7100',
-        'm12_elvis_RomeoJuliet_res3500',
-        'm12_elvis_RomulusRemus_res4000',
-        'm12_elvis_ThelmaLouise_res4000',
-        'm12f_res7100',
-        'm12i_res7100',
-        'm12m_res7100',
-        'm12r_res7100'
-    }
-        Name of the simulation to load.
-    host_idx: int
-        The index of the host to analyze in the given simulation. For Latte
-        runs, this should always be 0. For Elvis pairs, the index will either
-        be 0 or 1 depending on which of the the pair the user wants to analyze.
+    sim_path: str 
+        The path to the simulation the user wants to analyze. The user could
+        use UCI_tools.plot_vel_map.get_m12_path_olti to easily generate a path
+        that leads to Olti's files, or they could supply their own path.
+        Another option would be for the user to write their own `get_m12_path`
+        method in UCI_tools.plot_vel_map and make a pull request so everyone
+        has it.
+    display_name: str 
+        Simulation name to show in the plot.
     snap: str
-        The snapshot number to load. The snapshot number should be in
-        string format.
+        The snapshot number corresponding to `sim_path`. It should be in string
+        format with three digits. The code uses this to
+        display the correct look-back time in the plot.
     gas_num: int, default 50
         The minimum number of gas particles a 2d histogram bin must have
         for it to be included.
@@ -95,7 +89,7 @@ def plot(
     lbt = np.abs(time - 13.8)
 
     data = h5py.File(
-        simpath,
+        sim_path,
         'r'
     )
 
@@ -274,7 +268,7 @@ def plot(
     ax[0].text(
         0.02,
         0.1,
-        '{0}\nhost{1:0.0f}'.format(simname, host_idx),
+        '{0}'.format(display_name)
         transform=ax[0].transAxes,
         color='k',
         fontsize=16
@@ -322,7 +316,7 @@ def plot(
 
     plt.savefig(os.path.join(
         paths.figures, 
-        'plot_vel_map_{0}_host{1:0.0f}.pdf'.format(simname, host_idx)
+        'plot_vel_map_{0}_snap{1:0.0f}.pdf'.format(display_name, snap)
     ))
     plt.show()
 
