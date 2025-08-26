@@ -82,13 +82,12 @@ def plot(
     a = float(snapshot_times[int(snap)][1])
     lbt = np.abs(time - 13.8)
 
-    # Load gas data
-    path = get_m12_path(simname, host_idx, snap)
     data = h5py.File(
-        path,
+        simpath,
         'r'
     )
 
+    # Load gas data
     host_center = np.array(data['host_center'])
     host_vel = np.array(data['host_velocity'])
     pos_gas = a * (np.array(data['gas_coord_unrotated']) - host_center)
