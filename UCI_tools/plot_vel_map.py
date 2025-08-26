@@ -1,7 +1,5 @@
-def get_m12_path_olti(simname, host_idx, snap):
+def get_m12_path(simname, host_idx, snap):
     '''
-    Get the path to a given simulation file from Olti's directory.
-
     Parameters
     ----------
     simname: {
@@ -42,19 +40,33 @@ def get_m12_path_olti(simname, host_idx, snap):
     return path
 
 def plot(
-        simpath, 
+        simname, 
+        host_idx,
+        snap,
         gas_num=50,
         star_num=20):
     '''
     Parameters
     ----------
-    simpath: str 
-        The path to the simulation the user wants to analyze. The user could
-        use UCI_tools.plot_vel_map.get_m12_path_olti to easily generate a path
-        that leads to Olti's files, or they could supply their own path.
-        Another option would be for the user to write their own `get_m12_path`
-        method in UCI_tools.plot_vel_map and make a pull request so everyone
-        has it.
+    simname: {
+        'm12b_res7100',
+        'm12c_res7100',
+        'm12_elvis_RomeoJuliet_res3500',
+        'm12_elvis_RomulusRemus_res4000',
+        'm12_elvis_ThelmaLouise_res4000',
+        'm12f_res7100',
+        'm12i_res7100',
+        'm12m_res7100',
+        'm12r_res7100'
+    }
+        Name of the simulation to load.
+    host_idx: int
+        The index of the host to analyze in the given simulation. For Latte
+        runs, this should always be 0. For Elvis pairs, the index will either
+        be 0 or 1 depending on which of the the pair the user wants to analyze.
+    snap: str
+        The snapshot number to load. The snapshot number should be in
+        string format.
     gas_num: int, default 50
         The minimum number of gas particles a 2d histogram bin must have
         for it to be included.
