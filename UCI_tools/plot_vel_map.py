@@ -1,5 +1,7 @@
-def get_m12_path(sim_name, host_idx, snap):
+def get_m12_path_olti(sim_name, host_idx, snap):
     '''
+    Generate the path to simulation files in Olti's directory.
+
     Parameters
     ----------
     sim_name: {
@@ -41,7 +43,7 @@ def get_m12_path(sim_name, host_idx, snap):
 
 def plot(
         sim_path, 
-        display_name
+        display_name,
         snap,
         gas_num=50,
         star_num=20):
@@ -266,16 +268,16 @@ def plot(
     )
 
     ax[0].text(
-        0.02,
         0.1,
-        '{0}'.format(display_name)
+        0.9,
+        '{0}'.format(display_name),
         transform=ax[0].transAxes,
         color='k',
         fontsize=16
     )
     ax[0].text(
         0.1,
-        0.9,
+        0.85,
         'LBT = ' + str(np.round(lbt, 2)) + ' Gyr',
         transform=ax[0].transAxes,
         color='k',
@@ -316,7 +318,7 @@ def plot(
 
     plt.savefig(os.path.join(
         paths.figures, 
-        'plot_vel_map_{0}_snap{1:0.0f}.pdf'.format(display_name, snap)
+        'vel_map_{0}_snap{1}.png'.format(display_name.lower(), snap)
     ))
     plt.show()
 
