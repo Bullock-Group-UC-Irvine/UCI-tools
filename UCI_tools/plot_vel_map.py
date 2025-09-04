@@ -290,8 +290,8 @@ def plot(
     # expects the column number as x and the row number as y 
     # Therefore, we must provide the transpose of `H` to
     # `pcolormesh`.
-    v_y_colormesh_gas = v_y_colormap_gas.T,
-    v_y_colormesh_star = v_y_colormap_star.T,
+    v_y_colormesh_gas = v_y_colormap_gas.T
+    v_y_colormesh_star = v_y_colormap_star.T
 
     # Plot gas with colormap based on v_y_gas
     pcol_gas = ax[0].pcolormesh(
@@ -393,4 +393,4 @@ def plot(
         ))
     plt.show()
 
-    return v_y_colormap_gas.T, v_y_colormap_star.T 
+    return v_y_colormesh_gas, v_y_colormesh_star 
