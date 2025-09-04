@@ -25,7 +25,8 @@ setuptools.setup(
         'h5py',
         'progressbar',
         'nbformat',
-        'astropy'
+        'astropy',
+        'tqdm'
     ],
     entry_points={
         'console_scripts': [
