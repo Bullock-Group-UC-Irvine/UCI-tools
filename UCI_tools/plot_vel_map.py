@@ -46,7 +46,8 @@ def plot(
         display_name,
         snap,
         gas_num=50,
-        star_num=20):
+        star_num=20,
+        save_plot=True):
     '''
     Plot the v_y velocity map of gas and young stars for a given simulation and
     return the data for those two maps. 
@@ -93,6 +94,11 @@ def plot(
     star_num: int, default 20
         The minimum number of star particles a 2d histogram bin must have for
         it to be included.
+    save_plot: bool, default True
+        Whether to save the plot to disk. If True, the code will save the plot
+        in the `figures` directory specified in the user's 
+        config.ini file in
+        their home directory. 
 
     Returns
     -------
@@ -380,10 +386,11 @@ def plot(
     # Tight layout and spacing
     plt.tight_layout()
 
-    plt.savefig(os.path.join(
-        paths.figures, 
-        'vel_map_{0}_snap{1}.png'.format(display_name.lower(), snap)
-    ))
+    if save_plot:
+        plt.savefig(os.path.join(
+            paths.figures, 
+            'vel_map_{0}_snap{1}.png'.format(display_name.lower(), snap)
+        ))
     plt.show()
 
     return v_y_colormap_gas.T, v_y_colormap_star.T 

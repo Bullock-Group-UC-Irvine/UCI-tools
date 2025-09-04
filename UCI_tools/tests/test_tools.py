@@ -95,7 +95,8 @@ class TestVelMap(unittest.TestCase):
             'Thelma downsampled',
             snap='600',
             gas_num=1,
-            star_num=1
+            star_num=1,
+            save_plot=False
         )
         with h5py.File(
                 './UCI_tools/tests/test_data/'
