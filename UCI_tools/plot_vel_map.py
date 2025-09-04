@@ -48,6 +48,30 @@ def plot(
         gas_num=50,
         star_num=20):
     '''
+    Plot the v_y velocity map of gas and young stars for a given simulation and
+    return the data for those two maps. 
+    
+    The grid orientation of the returned maps 
+    follows the standard matrix convention specified in the 
+    `matplotlib.axes.Axes.pcolormesh` documentation; They have shape 
+    (nrows, ncolumns) with the column number as X and the row number as Y. 
+    
+    Note
+    that this orientation is the transpose of the `H` output of 
+    `np.histogram2d`,
+    which has X data along the 0 axis and Y data 
+    along the 1 axis.
+    If one were to print out `H`, 
+    visually,
+    one might expect the X-axis to run horizontally along `H` and the 
+    Y-axis to
+    run vertically along `H`. However, the opposite is true. Additionally, 
+    `matplotlib.axes.Axes.pcolormesh`
+    plots the inputted `C` mesh arry with the column number as X and the row 
+    number as Y.
+    Therefore, we must provide the transpose of `H` to
+    `pcolormesh`.
+
     Parameters
     ----------
     sim_path: str 
@@ -69,6 +93,19 @@ def plot(
     star_num: int, default 20
         The minimum number of star particles a 2d histogram bin must have for
         it to be included.
+
+    Returns
+    -------
+    v_y_colormesh_gas: np.ndarray
+        The gas velocity colormap data for use with 
+        `matplotlib.axes.Axis.pcolormesh`. X data is along the 1 axis. Z data
+        is along the 0 axis. The user can directly input this into
+        `pcolormesh`.
+    v_y_colormesh_star: np.ndarray
+        The young-star velocity colormap data for use with 
+        `matplotlib.axes.Axis.pcolormesh`. X data is along the 1 axis. Z data
+        is along the 0 axis. The user can directly input this into
+        `pcolormesh`.
     '''
 
     import os
@@ -138,6 +175,8 @@ def plot(
         #**********************************************************************
         # Bin the v_y values for gas and create a colormap based on the average 
         # v_y in each bin
+
+        # Get indices of the x and z locations into which each particle falls
         x_bin_indices_gas = np.digitize(x_gas, x_edges_gas) - 1
         z_bin_indices_gas = np.digitize(z_gas, z_edges_gas) - 1
         v_y_colormap_gas = np.zeros_like(hist_gas)
@@ -235,11 +274,24 @@ def plot(
     vmax = max(np.nanmax(v_y_colormap_gas), np.nanmax(v_y_colormap_star))
     vmin = -1*vmax
 
+    # The `H` output of `np.histogram2d` has x data along the 0 axis and y data 
+    # along the 1 axis.
+    # On one hand, that makes sense. However, if one prints out `H`, visually,
+    # one might expect the x-axis to run horizontally along `H` and the y-axis 
+    # to
+    # run vertically along `H`. This is not the case. Additionally, 
+    # `pcolormesh`
+    # expects the column number as x and the row number as y 
+    # Therefore, we must provide the transpose of `H` to
+    # `pcolormesh`.
+    v_y_colormesh_gas = v_y_colormap_gas.T,
+    v_y_colormesh_star = v_y_colormap_star.T,
+
     # Plot gas with colormap based on v_y_gas
     pcol_gas = ax[0].pcolormesh(
         x_edges_gas,
         z_edges_gas,
-        v_y_colormap_gas.T,
+        v_y_colormesh_gas,
         cmap=plt.cm.seismic_r,
         vmin=vmin,
         vmax=vmax
@@ -249,7 +301,7 @@ def plot(
     pcol_star = ax[1].pcolormesh(
         x_edges_star,
         z_edges_star,
-        v_y_colormap_star.T,
+        v_y_colormesh_star,
         cmap=plt.cm.seismic_r,
         vmin=vmin,
         vmax=vmax
