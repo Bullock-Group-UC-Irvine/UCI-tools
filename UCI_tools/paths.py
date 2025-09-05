@@ -53,7 +53,7 @@ def load_config():
     '''
     config_path = os.environ.get('MYPACKAGE_CONFIG')
     if config_path:
-        config_path = os.path.exapnduser(config_path)
+        config_path = os.path.expanduser(config_path)
     else:
         config_path = ensure_user_config()
 
