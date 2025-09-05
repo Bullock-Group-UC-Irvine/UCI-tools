@@ -41,6 +41,30 @@ def get_m12_path_olti(sim_name, host_idx, snap):
     )
     return path
 
+def load_m12_data_olti(sim_path):
+    data_out = {}
+    with h5py.File(sim_path, 'r') as data:
+        host_center = np.array(data['host_center'])
+        host_vel = np.array(data['host_velocity'])
+
+        # Load gas data
+        data_out['pos_gas'] = a * (
+            np.array(data['gas_coord_unrotated']) - host_center
+        )
+        data_out['vel_gas'] = np.array(data['gas_vel_unrotated']) - host_vel
+        data_out['jnet_gas'] = np.array(data['jnet_gas'])
+        data_out['temp'] = np.array(data['gas_temp'])
+        data_out['mass_gas'] = np.array(data['mass_gas'])[aux]
+        
+        # Load star data
+        data_out['pos_star'] = a * (
+            np.array(data['star_coord_unrotated']) - host_center
+        )
+        data_out['vel_star'] = np.array(data['star_vel_unrotated']) - host_vel
+        data_out['sft'] = np.array(data['sft_Gyr'])
+        data_out['jnet_star'] = np.array(data['jnet_young_star'])
+    return data_out
+
 def plot(
         sim_path, 
         display_name,
@@ -133,19 +157,11 @@ def plot(
     a = float(snapshot_times[int(snap)][1])
     lbt = np.abs(time - 13.8)
 
-    with h5py.File(sim_path, 'r') as data:
-        # Load gas data
-        host_center = np.array(data['host_center'])
-        host_vel = np.array(data['host_velocity'])
-        pos_gas = a * (np.array(data['gas_coord_unrotated']) - host_center)
-        vel_gas = np.array(data['gas_vel_unrotated']) - host_vel
-        jnet_gas = np.array(data['jnet_gas'])
-        temp = np.array(data['gas_temp'])
+    data = load_m12_data_olti(sim_path)
         aux = temp < 1e4
         temp = temp[aux]
-        pos_gas = pos_gas[aux]
-        vel_gas = vel_gas[aux]
-        mass_gas = np.array(data['mass_gas'])[aux]
+        pos_gas = data['pos_gas'][aux]
+        vel_gas = data['vel_gas'][aux]
         jnet_gas = calculate_ang_mom(mass_gas,pos_gas,vel_gas)
 
         r_matrix_gas = cal_rotation_matrix(jnet_gas, np.array((0.0, 0.0, 1.0)))
@@ -207,14 +223,9 @@ def plot(
         # Apply the mask to remove bins with fewer than `gas_num` gas particles
         v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
 
-        # Load star data
-        pos_star = a * (np.array(data['star_coord_unrotated']) - host_center)
-        vel_star = np.array(data['star_vel_unrotated']) - host_vel
-        sft = np.array(data['sft_Gyr'])
         young_mask = (sft <= (lbt + 0.5))
         pos_star = pos_star[young_mask]
         vel_star = vel_star[young_mask]
-        jnet_star = np.array(data['jnet_young_star'])
 
     r_matrix_star = cal_rotation_matrix(jnet_star, np.array((0.0, 0.0, 1.0)))
     pos_star = rotate_galaxy.rotate(pos_star, r_matrix_star)
