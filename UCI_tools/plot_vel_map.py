@@ -127,7 +127,7 @@ def plot(
     from .rotate_galaxy import calculate_ang_mom, cal_rotation_matrix
 
     snapshot_times = np.loadtxt(
-        '/DFS-L/DATA/cosmo/grenache/omyrtaj/fofie/snapshot_times.txt'
+        paths.snap_times
     )
     time = float(snapshot_times[int(snap)][3])
     a = float(snapshot_times[int(snap)][1])
