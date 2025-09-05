@@ -41,7 +41,16 @@ def get_m12_path_olti(sim_name, host_idx, snap):
     )
     return path
 
-def load_m12_data_olti(sim_path):
+def load_m12_data_olti(sim_path, snap):
+    import h5py
+    import numpy as np
+    from . import paths
+
+    snapshot_times = np.loadtxt(
+        paths.snap_times
+    )
+    a = float(snapshot_times[int(snap)][1])
+
     data_out = {}
     with h5py.File(sim_path, 'r') as data:
         host_center = np.array(data['host_center'])
@@ -154,7 +163,6 @@ def plot(
         paths.snap_times
     )
     time = float(snapshot_times[int(snap)][3])
-    a = float(snapshot_times[int(snap)][1])
     lbt = np.abs(time - 13.8)
 
     data = load_m12_data_olti(sim_path)
