@@ -1,5 +1,7 @@
 import setuptools
-from UCI_tools import __version__
+
+# Get the __version__ number.
+exec(open('UCI_tools/__version__.py').read())
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
