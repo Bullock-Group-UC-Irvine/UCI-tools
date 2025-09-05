@@ -104,6 +104,6 @@ class TestVelMap(unittest.TestCase):
                 'r') as f:
             gas_map_answer = f['gas'][()]
             young_star_map_answer = f['young_stars'][()]
-        npt.assert_allclose(gas_map + 0.1, gas_map_answer)
+        npt.assert_allclose(gas_map, gas_map_answer)
         npt.assert_allclose(young_star_map, young_star_map_answer)
         return None
