@@ -165,7 +165,7 @@ def plot(
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
 
-    data = load_m12_data_olti(sim_path)
+    data = load_m12_data_olti(sim_path, snap)
 
     aux = data['temp'] < 1e4
     temp = data['temp'][aux]
