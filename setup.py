@@ -1,14 +1,15 @@
 import setuptools
 
-# Get the __version__ number.
-exec(open('UCI_tools/__version__.py').read())
+# Get the version number.
+v_dict = {}
+exec(open('UCI_tools/__version__.py').read(), v_dict)
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="UCI_tools",
-    version=__version__,
+    version=v_dict['__version__'],
     author="UCI Bullock Galaxy Dark Matter Group",
     author_email="bullock@uci.edu",
     description="Software tools developed by and commonly used by the group.",
