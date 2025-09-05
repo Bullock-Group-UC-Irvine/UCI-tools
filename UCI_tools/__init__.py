@@ -4,7 +4,8 @@ from . import (
     fire_io,
     rotate_galaxy,
     plot_vel_map,
-    fire_tools
+    fire_tools,
+    paths
 )
 
 from .__version__ import __version__

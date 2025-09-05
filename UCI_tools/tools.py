@@ -393,3 +393,137 @@ def get_halo_info(halodirec, suffix, typ, host_key, mass_class):
     else:
         raise ValueError('Cannot yet handle log M < 10')
     return p, r, v, mvir
+
+def get_downsample_groups(path, cutoff):
+    '''
+    Determine features that should be subsampled together as a group.
+    The goal is for the groups to correspond to
+    particle type. The code infers group membership from the number of data 
+    points in
+    each data set.
+
+    Parameters
+    ----------
+    path: str
+        The path to the data being downsampled
+    cutoff: int
+        The number of data points in the largest h5py.Dataset that the code
+        should not downsample. This will usually be 3, corresponding to the 3
+        dimensions of halo coordinates. This parameters is just an easy way
+        of ensuring that summary statistics, as opposed to particle datapoints,
+        remain in tact.
+
+    Returns
+    -------
+    groups: list of lists of h5py.Dataset names
+        Grouped lists of h5py.Dataset names (i.e. the full paths corresponding
+        to the data set's location in the h5 file) where the names are grouped
+        based on the data sets having the same number of elements. This allows
+        `downsample_data` to drop the same particles from each data set.
+    '''
+    import h5py
+    import collections
+    import IPython
+
+    d = {}
+    def build_d(f):
+        for name, item in f.items():
+            if isinstance(item, h5py.Dataset):
+                data = item[()]
+                if isinstance(data, collections.abc.Iterable):
+                    N = len(data)
+                    if N in d:
+                        d[N].append(item.name)
+                    else:
+                        d[N] = [item.name]
+            elif isinstance(item, h5py.Group):
+                build_d(item)
+        return None 
+
+    with h5py.File(path, 'r') as f:
+        build_d(f)
+        
+    print('Original group sizes:')
+    IPython.display.display(d)
+
+    groups = [d[N] for N in d if N > cutoff]
+    print('\nGroups larger than cutoff:')
+    IPython.display.display(groups)
+
+    return groups 
+
+def downsample_data(path, output_path, groups, reduction=1.e-5):
+    import numpy as np
+    import h5py
+    import shutil
+    import tqdm
+    import itertools
+    import os
+    '''
+    Downsample simulation data so we can use it for fast unit testing.
+
+    Parameters
+    ----------
+    path: str
+        The path to the original simulation data file
+    output_path: str
+        The path where the code should save the generated test data. This will
+        be something like 
+        `$REPO_DIR/package_name/tests/test_data_dir/test_data.h5`.
+    groups: list of lists of h5py.Dataset names
+        The output of `get_downsample_groups`.
+        Grouped lists of h5py.Dataset names (i.e. the full paths corresponding
+        to the data set's location in the h5 file) where the names are grouped
+        based on the data sets having the same number of elements. This allows
+        `downsample_data` to drop the same particles from each data set. 
+    reduction: float, default 1.e-5
+        The ratio of the output data size to the original data size.
+
+    Returns
+    -------
+    None
+    '''
+
+    # A flat ungrouped list of features that we're downsampling
+    downsampled_features = list(itertools.chain.from_iterable(groups))
+    
+    generator = np.random.default_rng()
+    
+    def add_unaltered_item(key, item):
+        if item.name not in downsampled_features:
+            new_f.create_dataset(item.name, data=item[()])
+        return None
+
+    with h5py.File(path, 'r') as f:
+        with h5py.File(output_path, 'w') as new_f:
+            for i, group in enumerate(groups):
+                N = len(f[group[0]])
+                new_N = int(N * reduction)
+                print(
+                    'Downsampling group {0:0.0f} to {1:0.0f} data points'
+                    .format(
+                        i,
+                        new_N
+                    )
+                )
+                idxs = generator.choice(N, new_N, replace=False)
+                for key in tqdm.tqdm(group):
+                    data = np.array(f[key])
+                    if len(data) != N:
+                        raise Exception(
+                            '{0} with length {1:0.0f} is not the same length'
+                            ' {2:0.0f} as the other features in its group'
+                            .format(
+                                key,
+                                len(data),
+                                N
+                            )
+                        )
+                    new_f.create_dataset(key, data=data[idxs])
+            f.visititems(add_unaltered_item)
+
+    print('\nDownsampled file size: {0:0.1f} kiB'.format(
+        os.path.getsize(output_path) / 2. ** 10.
+    ))
+
+    return None

@@ -1,7 +1,5 @@
-import h5py
 import os
 import warnings
-import numpy as np
 from . import rotate_galaxy
 from . import tools as uci
 from . import staudt_tools
@@ -79,6 +77,8 @@ def gen_gal_data(
         rotated based on only stars is 'GVB_star_rot'. In this case, 
         `cropped_run` was 'star_rot'.
     '''
+    import h5py
+    import numpy as np
 
     if save and cropped_run is None:
         raise ValueError(
@@ -255,6 +255,9 @@ def gen_all_gals_data(run_name):
         rotated based on only stars is 'GVB_star_rot'. In this case, 
         `cropped_run` was 'star_rot'.
     '''
+    import h5py
+    import numpy as np
+
     df = staudt_tools.init_df()
     for gal in df.index:
         gen_gal_data(
@@ -293,7 +296,9 @@ def flatten_particle_data(
             particles. 'PartType4' is stars. 'PartType5' is black holes / 
             sinks.
     '''
-    
+    import h5py
+    import numpy as np
+
     keys = list(d.keys())
     try:
         keys.remove('Header')
@@ -349,6 +354,8 @@ def load_cropped_data(galname, getparts='all', verbose=True, cropped_run=None):
     d: dict
         Galaxy dictionary split by particle type
     '''
+    import h5py
+    import numpy as np
 
     if verbose:
         print('Loading {0:s}'.format(galname))
