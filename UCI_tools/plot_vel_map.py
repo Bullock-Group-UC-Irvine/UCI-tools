@@ -54,7 +54,7 @@ def load_m12_data_olti(sim_path):
         data_out['vel_gas'] = np.array(data['gas_vel_unrotated']) - host_vel
         data_out['jnet_gas'] = np.array(data['jnet_gas'])
         data_out['temp'] = np.array(data['gas_temp'])
-        data_out['mass_gas'] = np.array(data['mass_gas'])[aux]
+        data_out['mass_gas'] = np.array(data['mass_gas'])
         
         # Load star data
         data_out['pos_star'] = a * (
@@ -158,76 +158,81 @@ def plot(
     lbt = np.abs(time - 13.8)
 
     data = load_m12_data_olti(sim_path)
-        aux = temp < 1e4
-        temp = temp[aux]
-        pos_gas = data['pos_gas'][aux]
-        vel_gas = data['vel_gas'][aux]
-        jnet_gas = calculate_ang_mom(mass_gas,pos_gas,vel_gas)
 
-        r_matrix_gas = cal_rotation_matrix(jnet_gas, np.array((0.0, 0.0, 1.0)))
-        pos_gas = rotate_galaxy.rotate(pos_gas, r_matrix_gas)
-        vel_gas = rotate_galaxy.rotate(vel_gas, r_matrix_gas)
+    aux = data['temp'] < 1e4
+    temp = data['temp'][aux]
+    pos_gas = data['pos_gas'][aux]
+    vel_gas = data['vel_gas'][aux]
+    mass_gas = data['mass_gas'][aux]
+    jnet_gas = calculate_ang_mom(mass_gas, pos_gas, vel_gas)
 
-        v_gas = np.linalg.norm(vel_gas, axis=1)
-        v_max = 220
-        aux = v_gas <= v_max
-        vel_gas = vel_gas[aux]
-        pos_gas = pos_gas[aux]
+    r_matrix_gas = cal_rotation_matrix(jnet_gas, np.array((0.0, 0.0, 1.0)))
+    pos_gas = rotate_galaxy.rotate(pos_gas, r_matrix_gas)
+    vel_gas = rotate_galaxy.rotate(vel_gas, r_matrix_gas)
 
-        v_x_gas = vel_gas[:, 0]
-        v_y_gas = vel_gas[:, 1]  # Use for colormap
-        v_z_gas = vel_gas[:, 2]
+    v_gas = np.linalg.norm(vel_gas, axis=1)
+    v_max = 220
+    aux = v_gas <= v_max
+    vel_gas = vel_gas[aux]
+    pos_gas = pos_gas[aux]
 
-        x_gas = pos_gas[:, 0]
-        y_gas = pos_gas[:, 1]
-        z_gas = pos_gas[:, 2]
+    v_x_gas = vel_gas[:, 0]
+    v_y_gas = vel_gas[:, 1]  # Use for colormap
+    v_z_gas = vel_gas[:, 2]
 
-        nbins_gas = 100
-        # Create 2D histogram for gas
-        hist_gas, x_edges_gas, z_edges_gas = np.histogram2d(
-            x_gas,
-            z_gas,
-            bins=nbins_gas
-        )
-        hist_gas += 1  # Avoid log(0)
+    x_gas = pos_gas[:, 0]
+    y_gas = pos_gas[:, 1]
+    z_gas = pos_gas[:, 2]
 
-        # Apply the mask to keep bins with at least `gas_num` gas particles
-        mask_gas = hist_gas >= gas_num
+    nbins_gas = 100
+    # Create 2D histogram for gas
+    hist_gas, x_edges_gas, z_edges_gas = np.histogram2d(
+        x_gas,
+        z_gas,
+        bins=nbins_gas
+    )
+    hist_gas += 1  # Avoid log(0)
 
-        #**********************************************************************
-        # Bin the v_y values for gas and create a colormap based on the average 
-        # v_y in each bin
+    # Apply the mask to keep bins with at least `gas_num` gas particles
+    mask_gas = hist_gas >= gas_num
 
-        # Get indices of the x and z locations into which each particle falls
-        x_bin_indices_gas = np.digitize(x_gas, x_edges_gas) - 1
-        z_bin_indices_gas = np.digitize(z_gas, z_edges_gas) - 1
-        v_y_colormap_gas = np.zeros_like(hist_gas)
-        count_map_gas = np.zeros_like(hist_gas)
+    #**********************************************************************
+    # Bin the v_y values for gas and create a colormap based on the average 
+    # v_y in each bin
 
-        for i in range(len(x_gas)):
-            if (
-                    0 <= x_bin_indices_gas[i] < nbins_gas 
-                    and 0 <= z_bin_indices_gas[i] < nbins_gas):
-                v_y_colormap_gas[
-                    x_bin_indices_gas[i],
-                    z_bin_indices_gas[i]
-                ] += v_y_gas[i]
-                count_map_gas[x_bin_indices_gas[i], z_bin_indices_gas[i]] += 1
+    # Get indices of the x and z locations into which each particle falls
+    x_bin_indices_gas = np.digitize(x_gas, x_edges_gas) - 1
+    z_bin_indices_gas = np.digitize(z_gas, z_edges_gas) - 1
+    v_y_colormap_gas = np.zeros_like(hist_gas)
+    count_map_gas = np.zeros_like(hist_gas)
 
-        # Avoid division by zero:
-        count_map_gas[count_map_gas == 0] = 1
-        # Finally, calculating the avg v_y in each bin:
-        v_y_colormap_gas /= count_map_gas
-        #**********************************************************************
+    for i in range(len(x_gas)):
+        if (
+                0 <= x_bin_indices_gas[i] < nbins_gas 
+                and 0 <= z_bin_indices_gas[i] < nbins_gas):
+            v_y_colormap_gas[
+                x_bin_indices_gas[i],
+                z_bin_indices_gas[i]
+            ] += v_y_gas[i]
+            count_map_gas[x_bin_indices_gas[i], z_bin_indices_gas[i]] += 1
 
-        # Apply the mask to remove bins with fewer than `gas_num` gas particles
-        v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
+    # Avoid division by zero:
+    count_map_gas[count_map_gas == 0] = 1
+    # Finally, calculating the avg v_y in each bin:
+    v_y_colormap_gas /= count_map_gas
+    #**********************************************************************
 
-        young_mask = (sft <= (lbt + 0.5))
-        pos_star = pos_star[young_mask]
-        vel_star = vel_star[young_mask]
+    # Apply the mask to remove bins with fewer than `gas_num` gas particles
+    v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
 
-    r_matrix_star = cal_rotation_matrix(jnet_star, np.array((0.0, 0.0, 1.0)))
+    young_mask = (data['sft'] <= (lbt + 0.5))
+    pos_star = data['pos_star'][young_mask]
+    vel_star = data['vel_star'][young_mask]
+
+    r_matrix_star = cal_rotation_matrix(
+        data['jnet_star'],
+        np.array((0.0, 0.0, 1.0))
+    )
     pos_star = rotate_galaxy.rotate(pos_star, r_matrix_star)
     vel_star = rotate_galaxy.rotate(vel_star, r_matrix_star)
 
