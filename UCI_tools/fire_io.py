@@ -31,6 +31,7 @@ def gen_gal_data(
 
     In each particle-type h5py.Group, there are h5py.Dataset's. I provide an
     incomplete description of the Datasets here:
+        'mas_phys': Physical mass of each particle in units of 10^10 M_sun
         'v_vec_rot': Velocity vector in cartesian coordinates where the
             velocities have all been uniformly rotated so the z component
             points in the direction of the galaxy's angular momentum vector.
@@ -84,6 +85,13 @@ def gen_gal_data(
         raise ValueError(
             'If `save` is True, the user must specify a `cropped_run` name.'
         )
+    if (
+            (min_radius is not None or max_radius is not None) 
+            and not (min_radius is not None and max_radius is not None)):
+        raise ValueError(
+                'You must specify either both `min_radius` and `max_radius` or'
+                ' neither.'
+            )
 
     print('Generating {0:s} data'.format(galname))
 
