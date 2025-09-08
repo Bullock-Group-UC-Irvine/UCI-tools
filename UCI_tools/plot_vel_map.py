@@ -42,6 +42,38 @@ def get_m12_path_olti(sim_name, host_idx, snap):
     return path
 
 def load_m12_data_olti(sim_path, snap):
+    '''
+    Load Olti's data for use with `UCI_tools.plot_vel_map.plot`
+
+    Parameters
+    ----------
+    sim_path: str 
+        The path to the simulation the user wants to analyze. The user could
+        use UCI_tools.plot_vel_map.get_m12_path_olti to easily generate a path
+        that leads to Olti's files, or they could supply their own path.
+        Another option would be for the user to write their own `get_m12_path`
+        method in UCI_tools.plot_vel_map and make a pull request so everyone
+        has it.
+    snap: str
+        The snapshot number corresponding to `sim_path`. It should be in string
+        format with three digits. The code uses this to
+        display the correct look-back time in the plot.
+
+    Returns
+    -------
+    data_out: dict
+        A dictionary containing the data that `UCI_tools.plot_vel_map.plot`
+        requires. Keys are as follows:
+            'pos_gas': The centered, unrotated position vectors of the
+                simulation's gas particles in physical kpc
+            'vel_gas': The velocity vectors of the gas particles, relative to
+                the host
+            'jnet_gas': The net specific angular momentum of all of the gas
+            'temp': The temperature of the gas particles in Kelvin
+            'mass_gas': The mass of each gas particle in units of Msun
+            'pos_star': The centered, unrotated position vector of each star
+                particle in the simulation in physical kpc
+    '''
     import h5py
     import numpy as np
     from . import paths
