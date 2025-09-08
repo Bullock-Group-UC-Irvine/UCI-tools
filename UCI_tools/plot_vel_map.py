@@ -66,13 +66,24 @@ def load_m12_data_olti(sim_path, snap):
         requires. Keys are as follows:
             'pos_gas': The centered, unrotated position vectors of the
                 simulation's gas particles in physical kpc
-            'vel_gas': The velocity vectors of the gas particles, relative to
-                the host
-            'jnet_gas': The net specific angular momentum of all of the gas
+            'vel_gas': The unrotated velocity vectors in Cartesian coordinates
+                of the gas particles, 
+                relative to
+                the host center
+            'jnet_gas': The net specific angular momentum vector of all the 
+                gas within 20 kpc of the host center
             'temp': The temperature of the gas particles in Kelvin
-            'mass_gas': The mass of each gas particle in units of Msun
+            'mass_gas': The mass of each gas particle in physical units of 
+                M_sun
             'pos_star': The centered, unrotated position vector of each star
                 particle in the simulation in physical kpc
+            'vel_star': The unrotated velocity vector in Cartesian coordinates
+                of each star particle,
+                relative to the host center
+            'sft': The time in Gyr since the formation of each star particle,
+                relative to the given snapshot.
+            'jnet_star': The net specific angular momentum vector of all the
+                stars within 20 kpc of the host center
     '''
     import h5py
     import numpy as np
