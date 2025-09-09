@@ -31,7 +31,7 @@ def gen_gal_data(
 
     In each particle-type h5py.Group, there are h5py.Dataset's. I provide an
     incomplete description of the Datasets here:
-        'mas_phys': Physical mass of each particle in units of 10^10 M_sun
+        'mass_phys': Physical mass of each particle in units of 10^10 M_sun
         'v_vec_rot': Velocity vector in Cartesian coordinates where the
             velocities have all been uniformly rotated so the z component
             points in the direction of the galaxy's angular momentum vector.
@@ -361,6 +361,50 @@ def load_cropped_data(galname, getparts='all', verbose=True, cropped_run=None):
     -------
     d: dict
         Galaxy dictionary split by particle type
+
+        Particle types are
+            'PartType0' is gas. 
+            'PartType1' is dark matter.
+            'PartType2' is dummy collisionless. 
+            'PartType3' is grains/PIC particles. 
+            'PartType4' is stars. 
+            'PartType5' is black holes / sinks.
+
+        I provide an
+        incomplete description of the dictionaries' key, value pairs here:
+            'mass_phys': Physical mass of each particle in units of 10^10 M_sun
+
+            'v_vec_rot': Velocity vector in Cartesian coordinates where the
+                velocities have all been uniformly rotated so the z component
+                points in the direction of the galaxy's angular momentum
+                vector.
+            'v_vec_disc': Only x and y components of velocity
+            'coord_disc': Only x and y components of coordinates
+
+            'v_dot_rhat': The r (scalar) component of velocity, where 
+                d['coord_disc'] gives
+                the r vector (can be negative if the projection of velocity
+                along r
+                points in the opposite direction of r)
+            'v_dot_phihat': The phi (scalar) component of velocity (can be
+                negative
+                if the projection of velocity along phi points in the opposite
+                direction of phi)
+            'v_dot_zhat': The z (scalar) component of velocity (can be negative
+                if
+                the projection of velocity along z points in the opposite 
+                direction
+                of z)
+
+            'v_r_vec': The projection of velocity along the r vector, expressed
+                in
+                Cartesian x and y components
+            'v_phi_vec': The projection of velocity along the phi vector,
+                expressed
+                in Cartesian x and y components
+            'v_phi_mag': The magnitude of the projection of velocity along the 
+                phi
+                vector (always positive)
     '''
     import h5py
     import numpy as np
