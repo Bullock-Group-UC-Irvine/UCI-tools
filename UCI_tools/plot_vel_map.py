@@ -1,8 +1,10 @@
-def get_m12_path(simname, host_idx, snap):
+def get_m12_path_olti(sim_name, host_idx, snap):
     '''
+    Generate the path to simulation files in Olti's directory.
+
     Parameters
     ----------
-    simname: {
+    sim_name: {
         'm12b_res7100',
         'm12c_res7100',
         'm12_elvis_RomeoJuliet_res3500',
@@ -20,7 +22,7 @@ def get_m12_path(simname, host_idx, snap):
         be 0 or 1 depending on which of the the pair the user wants to analyze.
     snap: str
         The snapshot number to load. The snapshot number should be in
-        string format.
+        string format with three digits.
 
     Returns
     -------
@@ -30,7 +32,7 @@ def get_m12_path(simname, host_idx, snap):
     import os
     path = os.path.join(
         '/DFS-L/DATA/cosmo/grenache/omyrtaj/analysis_data/metaldiff/',
-        simname,
+        sim_name,
         'id_jnet_jzjc_jjc_'
             + snap
             + '_host'
@@ -39,40 +41,167 @@ def get_m12_path(simname, host_idx, snap):
     )
     return path
 
-def plot(
-        simname, 
-        host_idx,
-        snap,
-        gas_num=50,
-        star_num=20):
+def load_m12_data_olti(sim_path, snap):
     '''
+    Load Olti's data for use with `UCI_tools.plot_vel_map.plot`
+
     Parameters
     ----------
-    simname: {
-        'm12b_res7100',
-        'm12c_res7100',
-        'm12_elvis_RomeoJuliet_res3500',
-        'm12_elvis_RomulusRemus_res4000',
-        'm12_elvis_ThelmaLouise_res4000',
-        'm12f_res7100',
-        'm12i_res7100',
-        'm12m_res7100',
-        'm12r_res7100'
-    }
-        Name of the simulation to load.
-    host_idx: int
-        The index of the host to analyze in the given simulation. For Latte
-        runs, this should always be 0. For Elvis pairs, the index will either
-        be 0 or 1 depending on which of the the pair the user wants to analyze.
+    sim_path: str 
+        The path to the simulation the user wants to analyze. The user could
+        use UCI_tools.plot_vel_map.get_m12_path_olti to easily generate a path
+        that leads to Olti's files, or they could supply their own path.
+        Another option would be for the user to write their own `get_m12_path`
+        method in UCI_tools.plot_vel_map and make a pull request so everyone
+        has it.
     snap: str
-        The snapshot number to load. The snapshot number should be in
-        string format.
+        The snapshot number corresponding to `sim_path`. It should be in string
+        format with three digits. The code uses this to determine the scale
+        factor and thereby physical distances.
+
+    Returns
+    -------
+    data_out: dict
+        A dictionary containing the data that `UCI_tools.plot_vel_map.plot`
+        requires. Keys are as follows:
+            'pos_gas': The centered, unrotated position vectors of the
+                simulation's gas particles in physical kpc
+            'vel_gas': The unrotated velocity vectors in Cartesian coordinates
+                of the gas particles, 
+                relative to
+                the host center
+            'jnet_gas': The net specific angular momentum vector of all the 
+                gas within 20 kpc of the host center
+            'temp': The temperature of the gas particles in Kelvin
+            'mass_gas': The mass of each gas particle in physical units of 
+                M_sun
+            'pos_star': The centered, unrotated position vector of each star
+                particle in the simulation in physical kpc
+            'vel_star': The unrotated velocity vector in Cartesian coordinates
+                of each star particle,
+                relative to the host center
+            'sft': The time in Gyr since the formation of each star particle,
+                relative to the given snapshot.
+            'jnet_star': The net specific angular momentum vector of all the
+                stars within 20 kpc of the host center
+    '''
+    import h5py
+    import numpy as np
+    from . import paths
+
+    snapshot_times = np.loadtxt(
+        paths.snap_times
+    )
+    a = float(snapshot_times[int(snap)][1])
+
+    data_out = {}
+    with h5py.File(sim_path, 'r') as data:
+        host_center = np.array(data['host_center'])
+        host_vel = np.array(data['host_velocity'])
+
+        # Load gas data
+        data_out['pos_gas'] = a * (
+            np.array(data['gas_coord_unrotated']) - host_center
+        )
+        data_out['vel_gas'] = np.array(data['gas_vel_unrotated']) - host_vel
+        data_out['jnet_gas'] = np.array(data['jnet_gas'])
+        data_out['temp'] = np.array(data['gas_temp'])
+        data_out['mass_gas'] = np.array(data['mass_gas'])
+        
+        # Load star data
+        data_out['pos_star'] = a * (
+            np.array(data['star_coord_unrotated']) - host_center
+        )
+        data_out['vel_star'] = np.array(data['star_vel_unrotated']) - host_vel
+        data_out['sft'] = np.array(data['sft_Gyr'])
+        data_out['jnet_star'] = np.array(data['jnet_young_star'])
+    return data_out
+
+def plot(
+        data,
+        display_name,
+        snap,
+        gas_num=50,
+        star_num=20,
+        save_plot=True):
+    '''
+    Plot the v_y velocity map of gas and young stars for a given simulation and
+    return the data for those two maps. 
+    
+    The grid orientation of the returned maps 
+    follows the standard matrix convention specified in the 
+    `matplotlib.axes.Axes.pcolormesh` documentation; They have shape 
+    (nrows, ncolumns) with the column number as X and the row number as Y. 
+    
+    Note
+    that this orientation is the transpose of the `H` output of 
+    `np.histogram2d`,
+    which has X data along the 0 axis and Y data 
+    along the 1 axis.
+    If one were to print out `H`, 
+    visually,
+    one might expect the X-axis to run horizontally along `H` and the 
+    Y-axis to
+    run vertically along `H`. However, the opposite is true. Additionally, 
+    `matplotlib.axes.Axes.pcolormesh`
+    plots the inputted `C` mesh arry with the column number as X and the row 
+    number as Y.
+    Therefore, we must provide the transpose of `H` to
+    `pcolormesh`.
+
+    Parameters
+    ----------
+    data: dict
+        A dictionary containing the data data that `UCI_tools.plot_vel_map`
+        requires. It must contain the following keys:
+            'pos_gas': The centered, unrotated position vectors of the
+                simulation's gas particles in physical kpc
+            'vel_gas': The unrotated velocity vectors in Cartesian coordinates
+                of the gas particles, 
+                relative to
+                the host center
+            'temp': The temperature of the gas particles in Kelvin
+            'mass_gas': The mass of each gas particle in physical units of 
+                M_sun
+            'pos_star': The centered, unrotated position vector of each star
+                particle in the simulation in physical kpc
+            'vel_star': The unrotated velocity vector in Cartesian coordinates
+                of each star particle,
+                relative to the host center
+            'sft': The time in Gyr since the formation of each star particle,
+                relative to the given snapshot.
+            'jnet_star': The net specific angular momentum vector of all the
+                stars within 20 kpc of the host center
+    display_name: str 
+        Simulation name to show in the plot.
+    snap: str
+        The snapshot number corresponding to the data. It should be in string
+        format with three digits. The code uses this to
+        display the correct look-back time in the plot.
     gas_num: int, default 50
         The minimum number of gas particles a 2d histogram bin must have
         for it to be included.
     star_num: int, default 20
         The minimum number of star particles a 2d histogram bin must have for
         it to be included.
+    save_plot: bool, default True
+        Whether to save the plot to disk. If True, the code will save the plot
+        in the `figures` directory specified in the user's 
+        config.ini file in
+        their home directory. 
+
+    Returns
+    -------
+    v_y_colormesh_gas: np.ndarray
+        The gas velocity colormap data for use with 
+        `matplotlib.axes.Axis.pcolormesh`. X data is along the 1 axis. Z data
+        is along the 0 axis. The user can directly input this into
+        `pcolormesh`.
+    v_y_colormesh_star: np.ndarray
+        The young-star velocity colormap data for use with 
+        `matplotlib.axes.Axis.pcolormesh`. X data is along the 1 axis. Z data
+        is along the 0 axis. The user can directly input this into
+        `pcolormesh`.
     '''
 
     import os
@@ -88,31 +217,17 @@ def plot(
     from .rotate_galaxy import calculate_ang_mom, cal_rotation_matrix
 
     snapshot_times = np.loadtxt(
-        '/DFS-L/DATA/cosmo/grenache/omyrtaj/fofie/snapshot_times.txt'
+        paths.snap_times
     )
     time = float(snapshot_times[int(snap)][3])
-    a = float(snapshot_times[int(snap)][1])
     lbt = np.abs(time - 13.8)
 
-    # Load gas data
-    path = get_m12_path(simname, host_idx, snap)
-    data = h5py.File(
-        path,
-        'r'
-    )
-
-    host_center = np.array(data['host_center'])
-    host_vel = np.array(data['host_velocity'])
-    pos_gas = a * (np.array(data['gas_coord_unrotated']) - host_center)
-    vel_gas = np.array(data['gas_vel_unrotated']) - host_vel
-    jnet_gas = np.array(data['jnet_gas'])
-    temp = np.array(data['gas_temp'])
-    aux = temp < 1e4
-    temp = temp[aux]
-    pos_gas = pos_gas[aux]
-    vel_gas = vel_gas[aux]
-    mass_gas = np.array(data['mass_gas'])[aux]
-    jnet_gas = calculate_ang_mom(mass_gas,pos_gas,vel_gas)
+    aux = data['temp'] < 1e4
+    temp = data['temp'][aux]
+    pos_gas = data['pos_gas'][aux]
+    vel_gas = data['vel_gas'][aux]
+    mass_gas = data['mass_gas'][aux]
+    jnet_gas = calculate_ang_mom(mass_gas, pos_gas, vel_gas)
 
     r_matrix_gas = cal_rotation_matrix(jnet_gas, np.array((0.0, 0.0, 1.0)))
     pos_gas = rotate_galaxy.rotate(pos_gas, r_matrix_gas)
@@ -144,35 +259,43 @@ def plot(
     # Apply the mask to keep bins with at least `gas_num` gas particles
     mask_gas = hist_gas >= gas_num
 
+    #**********************************************************************
     # Bin the v_y values for gas and create a colormap based on the average 
     # v_y in each bin
+
+    # Get indices of the x and z locations into which each particle falls
     x_bin_indices_gas = np.digitize(x_gas, x_edges_gas) - 1
     z_bin_indices_gas = np.digitize(z_gas, z_edges_gas) - 1
     v_y_colormap_gas = np.zeros_like(hist_gas)
     count_map_gas = np.zeros_like(hist_gas)
 
     for i in range(len(x_gas)):
-        if 0 <= x_bin_indices_gas[i] < nbins_gas and 0 <= z_bin_indices_gas[i] < nbins_gas:
-            v_y_colormap_gas[x_bin_indices_gas[i], z_bin_indices_gas[i]] += v_y_gas[i]
+        if (
+                0 <= x_bin_indices_gas[i] < nbins_gas 
+                and 0 <= z_bin_indices_gas[i] < nbins_gas):
+            v_y_colormap_gas[
+                x_bin_indices_gas[i],
+                z_bin_indices_gas[i]
+            ] += v_y_gas[i]
             count_map_gas[x_bin_indices_gas[i], z_bin_indices_gas[i]] += 1
 
-    # Avoid division by zero
+    # Avoid division by zero:
     count_map_gas[count_map_gas == 0] = 1
+    # Finally, calculating the avg v_y in each bin:
     v_y_colormap_gas /= count_map_gas
+    #**********************************************************************
 
-    # Apply the mask to remove bins with fewer than 1000 gas particles
+    # Apply the mask to remove bins with fewer than `gas_num` gas particles
     v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
 
-    # Load star data
-    pos_star = a * (np.array(data['star_coord_unrotated']) - host_center)
-    vel_star = np.array(data['star_vel_unrotated']) - host_vel
-    sft = np.array(data['sft_Gyr'])
-    young_mask = (sft <= (lbt + 0.5))
-    pos_star = pos_star[young_mask]
-    vel_star = vel_star[young_mask]
-    jnet_star = np.array(data['jnet_young_star'])
+    young_mask = (data['sft'] <= (lbt + 0.5))
+    pos_star = data['pos_star'][young_mask]
+    vel_star = data['vel_star'][young_mask]
 
-    r_matrix_star = cal_rotation_matrix(jnet_star, np.array((0.0, 0.0, 1.0)))
+    r_matrix_star = cal_rotation_matrix(
+        data['jnet_star'],
+        np.array((0.0, 0.0, 1.0))
+    )
     pos_star = rotate_galaxy.rotate(pos_star, r_matrix_star)
     vel_star = rotate_galaxy.rotate(vel_star, r_matrix_star)
 
@@ -201,6 +324,7 @@ def plot(
     # Apply the mask to keep bins with at least `star_num` star particles
     mask_star = hist_star >= star_num
 
+    #**************************************************************************
     # Bin the v_y values for stars and create a colormap based on the average 
     # v_y in each bin
     x_bin_indices_star = np.digitize(x_star, x_edges_star) - 1
@@ -209,15 +333,22 @@ def plot(
     count_map_star = np.zeros_like(hist_star)
 
     for i in range(len(x_star)):
-        if 0 <= x_bin_indices_star[i] < nbins_star and 0 <= z_bin_indices_star[i] < nbins_star:
-            v_y_colormap_star[x_bin_indices_star[i], z_bin_indices_star[i]] += v_y_star[i]
+        if (
+                0 <= x_bin_indices_star[i] < nbins_star 
+                and 0 <= z_bin_indices_star[i] < nbins_star):
+            v_y_colormap_star[
+                x_bin_indices_star[i], 
+                z_bin_indices_star[i]
+            ]  += v_y_star[i]
             count_map_star[x_bin_indices_star[i], z_bin_indices_star[i]] += 1
 
-    # Avoid division by zero
+    # Avoid division by zero:
     count_map_star[count_map_star == 0] = 1
+    # Finally, calculating the avg v_y in each bin:
     v_y_colormap_star /= count_map_star
+    #**************************************************************************
 
-    # Apply the mask to remove bins with fewer than 1000 star particles
+    # Apply the mask to remove bins with fewer than `star_num` star particles
     v_y_colormap_star = np.where(mask_star, v_y_colormap_star, np.nan)
 
     # Set up the figure and axis
@@ -228,11 +359,24 @@ def plot(
     vmax = max(np.nanmax(v_y_colormap_gas), np.nanmax(v_y_colormap_star))
     vmin = -1*vmax
 
+    # The `H` output of `np.histogram2d` has x data along the 0 axis and y data 
+    # along the 1 axis.
+    # On one hand, that makes sense. However, if one prints out `H`, visually,
+    # one might expect the x-axis to run horizontally along `H` and the y-axis 
+    # to
+    # run vertically along `H`. This is not the case. Additionally, 
+    # `pcolormesh`
+    # expects the column number as x and the row number as y 
+    # Therefore, we must provide the transpose of `H` to
+    # `pcolormesh`.
+    v_y_colormesh_gas = v_y_colormap_gas.T
+    v_y_colormesh_star = v_y_colormap_star.T
+
     # Plot gas with colormap based on v_y_gas
     pcol_gas = ax[0].pcolormesh(
         x_edges_gas,
         z_edges_gas,
-        v_y_colormap_gas.T,
+        v_y_colormesh_gas,
         cmap=plt.cm.seismic_r,
         vmin=vmin,
         vmax=vmax
@@ -242,7 +386,7 @@ def plot(
     pcol_star = ax[1].pcolormesh(
         x_edges_star,
         z_edges_star,
-        v_y_colormap_star.T,
+        v_y_colormesh_star,
         cmap=plt.cm.seismic_r,
         vmin=vmin,
         vmax=vmax
@@ -273,16 +417,16 @@ def plot(
     )
 
     ax[0].text(
-        0.02,
         0.1,
-        '{0}\nhost{1:0.0f}'.format(simname, host_idx),
+        0.9,
+        '{0}'.format(display_name),
         transform=ax[0].transAxes,
         color='k',
         fontsize=16
     )
     ax[0].text(
         0.1,
-        0.9,
+        0.85,
         'LBT = ' + str(np.round(lbt, 2)) + ' Gyr',
         transform=ax[0].transAxes,
         color='k',
@@ -321,10 +465,11 @@ def plot(
     # Tight layout and spacing
     plt.tight_layout()
 
-    plt.savefig(os.path.join(
-        paths.figures, 
-        'plot_vel_map_{0}_host{1:0.0f}.pdf'.format(simname, host_idx)
-    ))
+    if save_plot:
+        plt.savefig(os.path.join(
+            paths.figures, 
+            'vel_map_{0}_snap{1}.png'.format(display_name.lower(), snap)
+        ))
     plt.show()
 
-    return None
+    return v_y_colormesh_gas, v_y_colormesh_star 

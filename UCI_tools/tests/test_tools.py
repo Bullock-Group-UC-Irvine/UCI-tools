@@ -2,6 +2,7 @@
 import numpy as np
 import numpy.testing as npt
 import unittest
+import h5py
 
 import UCI_tools.tools as tools
 import UCI_tools as uci
@@ -79,3 +80,34 @@ class TestMisc( unittest.TestCase  ):
                 13.79874688-0.01780470,
                 atol = .15
             ) #snapshot 0	
+
+###############################################################################
+
+class TestVelMap(unittest.TestCase):
+    '''
+    Test that velocity map plotter works.
+    '''
+
+    def test_vel_map(self):
+        data = uci.plot_vel_map.load_m12_data_olti(
+            './UCI_tools/tests/test_data/downsampled_sim_data/fire_sim/'
+                'thelma_downsampled_for_vel_map.h5',
+            '600'
+        )
+        gas_map, young_star_map = uci.plot_vel_map.plot(
+            data,
+            display_name='Thelma downsampled',
+            snap='600',
+            gas_num=1,
+            star_num=1,
+            save_plot=False
+        )
+        with h5py.File(
+                './UCI_tools/tests/test_data/'
+                    'thelma_test_vel_maps.h5',
+                'r') as f:
+            gas_map_answer = f['gas'][()]
+            young_star_map_answer = f['young_stars'][()]
+        npt.assert_allclose(gas_map, gas_map_answer)
+        npt.assert_allclose(young_star_map, young_star_map_answer)
+        return None

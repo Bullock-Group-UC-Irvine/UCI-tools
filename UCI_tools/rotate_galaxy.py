@@ -8,9 +8,10 @@ from .fire_tools import coord_to_r
 def checklen(x):
     return len(np.array(x,ndmin=1));
 
-def calculate_ang_mom(mass,coord,vel):
+def calculate_ang_mom(mass, coord, vel):
     '''
-    Calculate angular momentum given mass, coordinates and velocities
+    Calculate specific angular momentum given masses, coordinates and 
+    velocities
     '''
     if coord.shape[1]!=3:
         coord = coord.T
