@@ -56,8 +56,8 @@ def load_m12_data_olti(sim_path, snap):
         has it.
     snap: str
         The snapshot number corresponding to `sim_path`. It should be in string
-        format with three digits. The code uses this to
-        display the correct look-back time in the plot.
+        format with three digits. The code uses this to determine the scale
+        factor and thereby physical distances.
 
     Returns
     -------
@@ -118,7 +118,7 @@ def load_m12_data_olti(sim_path, snap):
     return data_out
 
 def plot(
-        sim_path, 
+        data,
         display_name,
         snap,
         gas_num=50,
@@ -151,17 +151,31 @@ def plot(
 
     Parameters
     ----------
-    sim_path: str 
-        The path to the simulation the user wants to analyze. The user could
-        use UCI_tools.plot_vel_map.get_m12_path_olti to easily generate a path
-        that leads to Olti's files, or they could supply their own path.
-        Another option would be for the user to write their own `get_m12_path`
-        method in UCI_tools.plot_vel_map and make a pull request so everyone
-        has it.
+    data: dict
+        A dictionary containing the data data that `UCI_tools.plot_vel_map`
+        requires. It must contain the following keys:
+            'pos_gas': The centered, unrotated position vectors of the
+                simulation's gas particles in physical kpc
+            'vel_gas': The unrotated velocity vectors in Cartesian coordinates
+                of the gas particles, 
+                relative to
+                the host center
+            'temp': The temperature of the gas particles in Kelvin
+            'mass_gas': The mass of each gas particle in physical units of 
+                M_sun
+            'pos_star': The centered, unrotated position vector of each star
+                particle in the simulation in physical kpc
+            'vel_star': The unrotated velocity vector in Cartesian coordinates
+                of each star particle,
+                relative to the host center
+            'sft': The time in Gyr since the formation of each star particle,
+                relative to the given snapshot.
+            'jnet_star': The net specific angular momentum vector of all the
+                stars within 20 kpc of the host center
     display_name: str 
         Simulation name to show in the plot.
     snap: str
-        The snapshot number corresponding to `sim_path`. It should be in string
+        The snapshot number corresponding to the data. It should be in string
         format with three digits. The code uses this to
         display the correct look-back time in the plot.
     gas_num: int, default 50
@@ -207,8 +221,6 @@ def plot(
     )
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
-
-    data = load_m12_data_olti(sim_path, snap)
 
     aux = data['temp'] < 1e4
     temp = data['temp'][aux]
