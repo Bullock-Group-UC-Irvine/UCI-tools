@@ -80,8 +80,8 @@ def load_m12_data_olti(sim_path, snap):
             'vel_star': The unrotated velocity vector in Cartesian coordinates
                 of each star particle,
                 relative to the host center
-            'sft': The time in Gyr since the formation of each star particle,
-                relative to the given snapshot.
+            'sft': The lookback time from z=0 since the formation of each star 
+                particle
             'jnet_star': The net specific angular momentum vector of all the
                 stars within 20 kpc of the host center
     '''
@@ -168,10 +168,19 @@ def plot(
             'vel_star': The unrotated velocity vector in Cartesian coordinates
                 of each star particle,
                 relative to the host center
-            'sft': The time in Gyr since the formation of each star particle,
-                relative to the given snapshot.
             'jnet_star': The net specific angular momentum vector of all the
                 stars within 20 kpc of the host center
+            ONE OF THE FOLLOWING
+            --------------------
+                (Calculating formation lookback times in Gyr is computationally
+                intensive. Therefore, if you don't already have that, it's more
+                efficient to just pass formation scale factors into this 
+                function.)
+
+                'sft': The lookback time from z=0 to the formation of each star 
+                    particle
+                'a_form_star': The scale factor at which each star particle
+                    formed.
     display_name: str 
         Simulation name to show in the plot.
     snap: str
@@ -288,7 +297,22 @@ def plot(
     # Apply the mask to remove bins with fewer than `gas_num` gas particles
     v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
 
-    young_mask = (data['sft'] <= (lbt + 0.5))
+    if 'sft' in data:
+        # If the user's `data` dictionary already contains stellar formation
+        # times in Gyr, use that
+        young_mask = (data['sft'] <= (lbt + 0.5))
+    elif 'a_form_star' in data:
+        # Otherwise, use the scale factors at formation.
+        z_young = cosmo.z_at_value(
+            cosmo.Planck13.lookback_time,
+            (lbt + 0.5) * astropy.units.Gyr
+        )[1]
+        a_young = 1. / (z_young + 1.)
+        young_mask = data['a_form_star'] >= a_young
+    else:
+        raise ValueError(
+            '`data` must contain either \'sft\' or \'a_form_star\'.'
+        )
     pos_star = data['pos_star'][young_mask]
     vel_star = data['vel_star'][young_mask]
 
