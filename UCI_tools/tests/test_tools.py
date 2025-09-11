@@ -89,7 +89,7 @@ class TestVelMap(unittest.TestCase):
     '''
 
     def test_vel_map(self):
-        data = uci.plot_vel_map.load_m12_data_olti(
+        data = uci.vel_map.load_m12_data_olti(
             './UCI_tools/tests/test_data/downsampled_sim_data/fire_sim/'
                 'thelma_downsampled_for_vel_map.h5',
             '600'
