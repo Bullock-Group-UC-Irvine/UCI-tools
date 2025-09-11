@@ -43,7 +43,18 @@ def get_m12_path_olti(sim_name, host_idx, snap):
 
 def load_m12_data_olti(sim_path, snap):
     '''
-    Load Olti's data for use with `UCI_tools.plot_vel_map.plot`
+    Load Olti's data for use with `UCI_tools.plot_vel_map.plot`. You can also
+    use this with your own data at `sim_path` as long as it's an hdf5 file with
+    the following `h5py.Dataset`s:
+        'gas_coord_unroated'
+        'gas_vel_unrotated'
+        'jnet_gas'
+        'gas_temp'
+        'mass_gas'
+        'star_coord_unrotated'
+        'star_vel_unrotated',
+        'sft_Gyr',
+        'jnet_young_star'
 
     Parameters
     ----------
@@ -219,6 +230,9 @@ def plot(
 
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
+
+    import astropy.cosmology as cosmo
+    import astropy
 
     from . import paths
 
