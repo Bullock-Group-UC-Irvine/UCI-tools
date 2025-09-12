@@ -72,7 +72,7 @@ def load_m12_data_olti(sim_path, snap):
 
     Returns
     -------
-    data_out: dict
+    data: dict
         A dictionary containing the data that `UCI_tools.plot_vel_map.plot`
         requires. Keys are as follows:
             'pos_gas': The centered, unrotated position vectors of the
@@ -99,37 +99,80 @@ def load_m12_data_olti(sim_path, snap):
     import h5py
     import numpy as np
     from . import paths
+    from . import rotate_galaxy
 
     snapshot_times = np.loadtxt(
         paths.snap_times
     )
+    time = float(snapshot_times[int(snap)][3])
+    lbt = np.abs(time - 13.8)
     a = float(snapshot_times[int(snap)][1])
 
-    data_out = {}
-    with h5py.File(sim_path, 'r') as data:
-        host_center = np.array(data['host_center'])
-        host_vel = np.array(data['host_velocity'])
+    data = {}
+    with h5py.File(sim_path, 'r') as f:
+        host_center = np.array(f['host_center'])
+        host_vel = np.array(f['host_velocity'])
 
         # Load gas data
-        data_out['pos_gas'] = a * (
-            np.array(data['gas_coord_unrotated']) - host_center
+        pos_gas = a * (
+            np.array(f['gas_coord_unrotated']) - host_center
         )
-        data_out['vel_gas'] = np.array(data['gas_vel_unrotated']) - host_vel
-        data_out['jnet_gas'] = np.array(data['jnet_gas'])
-        data_out['temp'] = np.array(data['gas_temp'])
-        data_out['mass_gas'] = np.array(data['mass_gas'])
+        vel_gas = np.array(f['gas_vel_unrotated']) - host_vel
+        jnet_gas = np.array(f['jnet_gas'])
+        temp = np.array(f['gas_temp'])
+        mass_gas = np.array(f['mass_gas'])
         
         # Load star data
-        data_out['pos_star'] = a * (
-            np.array(data['star_coord_unrotated']) - host_center
+        pos_star = a * (
+            np.array(f['star_coord_unrotated']) - host_center
         )
-        data_out['vel_star'] = np.array(data['star_vel_unrotated']) - host_vel
-        data_out['sft'] = np.array(data['sft_Gyr'])
-        data_out['jnet_star'] = np.array(data['jnet_young_star'])
-    return data_out
+        vel_star = np.array(f['star_vel_unrotated']) - host_vel
+        sft = np.array(f['sft_Gyr'])
+        jnet_star = np.array(f['jnet_young_star'])
+
+    aux = temp < 1e4
+    temp = temp[aux]
+    pos_gas = pos_gas[aux]
+    vel_gas = vel_gas[aux]
+    mass_gas = mass_gas[aux]
+    jnet_gas = rotate_galaxy.calculate_ang_mom(mass_gas, pos_gas, vel_gas)
+
+    r_matrix_gas = rotate_galaxy.cal_rotation_matrix(
+        jnet_gas,
+        np.array((0.0, 0.0, 1.0))
+    )
+    pos_gas = rotate_galaxy.rotate(pos_gas, r_matrix_gas)
+    vel_gas = rotate_galaxy.rotate(vel_gas, r_matrix_gas)
+
+    v_gas = np.linalg.norm(vel_gas, axis=1)
+    v_max = 220
+    aux = v_gas <= v_max
+    vel_gas = vel_gas[aux]
+    pos_gas = pos_gas[aux]
+
+    young_mask = (sft <= (lbt + .5))
+    pos_star = pos_star[young_mask]
+    vel_star = vel_star[young_mask]
+
+    r_matrix_star = rotate_galaxy.cal_rotation_matrix(
+        jnet_star,
+        np.array((0.0, 0.0, 1.0))
+    )
+    pos_star = rotate_galaxy.rotate(pos_star, r_matrix_star)
+    vel_star = rotate_galaxy.rotate(vel_star, r_matrix_star)
+
+    v_star = np.linalg.norm(vel_star, axis=1)
+    aux = v_star <= v_max
+    vel_star = vel_star[aux]
+    pos_star = pos_star[aux]
+
+    return pos_star, vel_star, pos_gas, vel_gas 
 
 def plot(
-        data,
+        pos_star,
+        vel_star,
+        pos_gas,
+        vel_gas,
         display_name,
         snap,
         gas_num=50,
@@ -137,8 +180,8 @@ def plot(
         save_plot=True):
     '''
     Plot the v_y velocity map of gas and young stars for a given simulation and
-    return the data for those two maps. 
-    
+    return the data for those two maps.
+     
     The grid orientation of the returned maps 
     follows the standard matrix convention specified in the 
     `matplotlib.axes.Axes.pcolormesh` documentation; They have shape 
@@ -190,7 +233,7 @@ def plot(
 
                 'sft': The lookback time from z=0 to the formation of each star 
                     particle
-                'a_form_star': The scale factor at which each star particle
+                'sft_a': The scale factor at which each star particle
                     formed.
     display_name: str 
         Simulation name to show in the plot.
@@ -236,31 +279,11 @@ def plot(
 
     from . import paths
 
-    from . import rotate_galaxy
-    from .rotate_galaxy import calculate_ang_mom, cal_rotation_matrix
-
     snapshot_times = np.loadtxt(
         paths.snap_times
     )
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
-
-    aux = data['temp'] < 1e4
-    temp = data['temp'][aux]
-    pos_gas = data['pos_gas'][aux]
-    vel_gas = data['vel_gas'][aux]
-    mass_gas = data['mass_gas'][aux]
-    jnet_gas = calculate_ang_mom(mass_gas, pos_gas, vel_gas)
-
-    r_matrix_gas = cal_rotation_matrix(jnet_gas, np.array((0.0, 0.0, 1.0)))
-    pos_gas = rotate_galaxy.rotate(pos_gas, r_matrix_gas)
-    vel_gas = rotate_galaxy.rotate(vel_gas, r_matrix_gas)
-
-    v_gas = np.linalg.norm(vel_gas, axis=1)
-    v_max = 220
-    aux = v_gas <= v_max
-    vel_gas = vel_gas[aux]
-    pos_gas = pos_gas[aux]
 
     v_x_gas = vel_gas[:, 0]
     v_y_gas = vel_gas[:, 1]  # Use for colormap
@@ -310,37 +333,6 @@ def plot(
 
     # Apply the mask to remove bins with fewer than `gas_num` gas particles
     v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
-
-    if 'sft' in data:
-        # If the user's `data` dictionary already contains stellar formation
-        # times in Gyr, use that
-        young_mask = (data['sft'] <= (lbt + 0.5))
-    elif 'a_form_star' in data:
-        # Otherwise, use the scale factors at formation.
-        z_young = cosmo.z_at_value(
-            cosmo.Planck13.lookback_time,
-            (lbt + 0.5) * astropy.units.Gyr
-        )[1]
-        a_young = 1. / (z_young + 1.)
-        young_mask = data['a_form_star'] >= a_young
-    else:
-        raise ValueError(
-            '`data` must contain either \'sft\' or \'a_form_star\'.'
-        )
-    pos_star = data['pos_star'][young_mask]
-    vel_star = data['vel_star'][young_mask]
-
-    r_matrix_star = cal_rotation_matrix(
-        data['jnet_star'],
-        np.array((0.0, 0.0, 1.0))
-    )
-    pos_star = rotate_galaxy.rotate(pos_star, r_matrix_star)
-    vel_star = rotate_galaxy.rotate(vel_star, r_matrix_star)
-
-    v_star = np.linalg.norm(vel_star, axis=1)
-    aux = v_star <= v_max
-    vel_star = vel_star[aux]
-    pos_star = pos_star[aux]
 
     v_x_star = vel_star[:, 0]
     v_y_star = vel_star[:, 1]  # Use for colormap

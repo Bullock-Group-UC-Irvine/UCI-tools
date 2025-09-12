@@ -95,7 +95,7 @@ class TestVelMap(unittest.TestCase):
             '600'
         )
         gas_map, young_star_map = uci.vel_map.plot(
-            data,
+            *data,
             display_name='Thelma downsampled',
             snap='600',
             gas_num=1,
