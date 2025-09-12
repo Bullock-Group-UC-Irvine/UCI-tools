@@ -72,6 +72,21 @@ def load_m12_data_olti(sim_path, snap):
 
     Returns
     -------
+    pos_star: np.ndarray, shape (N_stars, 3)
+        The centered, rotated position vectors of the
+        simulation's star particles in Cartesian coordinates in physical kpc.
+        The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the young stars.
+    vel_star: np.ndarray, shape (N_stars, 3)
+        The rotated velocity vectors of the star particle in Cartesian
+        coordinates
+        relative to
+        the host center. The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the cold gas (T <= 1e4 K)
     pos_gas: np.ndarray, shape (N_gas, 3)
         The centered, rotated position vectors of the
         simulation's gas particles in Cartesian coordinates in physical kpc.
@@ -82,21 +97,6 @@ def load_m12_data_olti(sim_path, snap):
         (T <= 1e4 K)
     vel_gas: np.ndarray, shape (N_gas, 3)
         The rotated velocity vectors of the gas particle in Cartesian
-        coordinates
-        relative to
-        the host center. The function rotated them
-        so the the x- and y-axes are in the plane of the disc by aligning 
-        the z-axis 
-        with the net angular momentum of the cold gas (T <= 1e4 K)
-    pos_star: np.ndarray, shape (N_stars, 3)
-        The centered, rotated position vectors of the
-        simulation's star particles in Cartesian coordinates in physical kpc.
-        The function rotated them
-        so the the x- and y-axes are in the plane of the disc by aligning 
-        the z-axis 
-        with the net angular momentum of the young stars.
-    vel_star: np.ndarray, shape (N_stars, 3)
-        The rotated velocity vectors of the star particle in Cartesian
         coordinates
         relative to
         the host center. The function rotated them
@@ -297,10 +297,15 @@ def plot(
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
 
+    # The function takes the line of sight to be along the 1-axis (i.e. 
+    # y-axis).
+    # Therefore, x and z velocities are unnecessary.
     #v_x_gas = vel_gas[:, 0]
     v_y_gas = vel_gas[:, 1]  # Use for colormap
     #v_z_gas = vel_gas[:, 2]
 
+    # The function looks down the 1 axis (i.e. y-axis), so the y positional
+    # information does not get used.
     x_gas = pos_gas[:, 0]
     #y_gas = pos_gas[:, 1]
     z_gas = pos_gas[:, 2]
@@ -341,17 +346,22 @@ def plot(
     count_map_gas[count_map_gas == 0] = 1
     # Finally, calculating the avg v_y in each bin:
     v_y_colormap_gas /= count_map_gas
-    #**********************************************************************
 
     # Apply the mask to remove bins with fewer than `gas_num` gas particles
     v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
+    #**********************************************************************
 
-    v_x_star = vel_star[:, 0]
+    # The function takes the line of sight to be along the 1-axis (i.e. 
+    # y-axis).
+    # Therefore, x and z velocities are unnecessary.
+    #v_x_star = vel_star[:, 0]
     v_y_star = vel_star[:, 1]  # Use for colormap
-    v_z_star = vel_star[:, 2]
+    #v_z_star = vel_star[:, 2]
 
+    # The function looks down the 1 axis (i.e. y-axis), so the y positional
+    # information does not get used.
     x_star = pos_star[:, 0]
-    y_star = pos_star[:, 1]
+    #y_star = pos_star[:, 1]
     z_star = pos_star[:, 2]
 
     nbins_star = 100
