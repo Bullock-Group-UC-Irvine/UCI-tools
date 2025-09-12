@@ -72,29 +72,37 @@ def load_m12_data_olti(sim_path, snap):
 
     Returns
     -------
-    data: dict
-        A dictionary containing the data that `UCI_tools.plot_vel_map.plot`
-        requires. Keys are as follows:
-            'pos_gas': The centered, unrotated position vectors of the
-                simulation's gas particles in physical kpc
-            'vel_gas': The unrotated velocity vectors in Cartesian coordinates
-                of the gas particles, 
-                relative to
-                the host center
-            'jnet_gas': The net specific angular momentum vector of all the 
-                gas within 20 kpc of the host center
-            'temp': The temperature of the gas particles in Kelvin
-            'mass_gas': The mass of each gas particle in physical units of 
-                M_sun
-            'pos_star': The centered, unrotated position vector of each star
-                particle in the simulation in physical kpc
-            'vel_star': The unrotated velocity vector in Cartesian coordinates
-                of each star particle,
-                relative to the host center
-            'sft': The lookback time from z=0 since the formation of each star 
-                particle
-            'jnet_star': The net specific angular momentum vector of all the
-                stars within 20 kpc of the host center
+    pos_gas: np.ndarray, shape (N_gas, 3)
+        The centered, rotated position vectors of the
+        simulation's gas particles in Cartesian coordinates in physical kpc.
+        The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the cold gas 
+        (T <= 1e4 K)
+    vel_gas: np.ndarray, shape (N_gas, 3)
+        The rotated velocity vectors of the gas particle in Cartesian
+        coordinates
+        relative to
+        the host center. The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the cold gas (T <= 1e4 K)
+    pos_star: np.ndarray, shape (N_stars, 3)
+        The centered, rotated position vectors of the
+        simulation's star particles in Cartesian coordinates in physical kpc.
+        The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the young stars.
+    vel_star: np.ndarray, shape (N_stars, 3)
+        The rotated velocity vectors of the star particle in Cartesian
+        coordinates
+        relative to
+        the host center. The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the cold gas (T <= 1e4 K)
     '''
     import h5py
     import numpy as np
@@ -177,7 +185,7 @@ def plot(
         snap,
         gas_num=50,
         star_num=20,
-        save_plot=True):
+        save_plot=False):
     '''
     Plot the v_y velocity map of gas and young stars for a given simulation and
     return the data for those two maps.
@@ -205,36 +213,40 @@ def plot(
 
     Parameters
     ----------
-    data: dict
-        A dictionary containing the data data that `UCI_tools.plot_vel_map`
-        requires. It must contain the following keys:
-            'pos_gas': The centered, unrotated position vectors of the
-                simulation's gas particles in physical kpc
-            'vel_gas': The unrotated velocity vectors in Cartesian coordinates
-                of the gas particles, 
-                relative to
-                the host center
-            'temp': The temperature of the gas particles in Kelvin
-            'mass_gas': The mass of each gas particle in physical units of 
-                M_sun
-            'pos_star': The centered, unrotated position vector of each star
-                particle in the simulation in physical kpc
-            'vel_star': The unrotated velocity vector in Cartesian coordinates
-                of each star particle,
-                relative to the host center
-            'jnet_star': The net specific angular momentum vector of all the
-                stars within 20 kpc of the host center
-            ONE OF THE FOLLOWING
-            --------------------
-                (Calculating formation lookback times in Gyr is computationally
-                intensive. Therefore, if you don't already have that, it's more
-                efficient to just pass formation scale factors into this 
-                function.)
-
-                'sft': The lookback time from z=0 to the formation of each star 
-                    particle
-                'sft_a': The scale factor at which each star particle
-                    formed.
+    pos_gas: np.ndarray, shape (N_gas, 3)
+        Cartesian position vectors relative to the host center, in physical
+        kpc, of the
+        gas particles whose velocities the user wants to map.
+        The resulting velocity map assumes the line of sight is down the 1 axis
+        (or y-axis). If the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum, this is analagous to
+        looking into the disc.
+    vel_gas: np.ndarray, shape (N_gas, 3)
+        Cartesian velocity vectors relative to the host center, in physical
+        km/s, of the gas particles whose
+        velocities the user wants to map.
+        The resulting velocity map assumes the line of sight is down the 1 axis
+        (or y-axis). Therefore, this function maps the 1-axis velocities. If
+        the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum, this is analagous to
+        looking into the disc.
+    pos_star: np.ndarray, shape (N_stars, 3)
+        Cartesian position vectors relative to the host center, in physical
+        kpc, of the star
+        particles whose velocities the user wants to map.
+        The resulting velocity map assumes the line of sight is down the 1 axis
+        (or y-axis). If the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum, this is analagous to
+        looking into the disc.
+    vel_star: np.ndarray, shape (N_stars, 3)
+        Cartesian velocity vectors relative to the host center, in physical
+        km/s, of the gas particles whose
+        velocities the user wants to map.
+        The resulting velocity map assumes the line of sight is down the 1 axis
+        (or y-axis). Therefore, this function maps the 1-axis velocities. If
+        the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum, this is analagous to
+        looking into the disc.
     display_name: str 
         Simulation name to show in the plot.
     snap: str
@@ -285,12 +297,12 @@ def plot(
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
 
-    v_x_gas = vel_gas[:, 0]
+    #v_x_gas = vel_gas[:, 0]
     v_y_gas = vel_gas[:, 1]  # Use for colormap
-    v_z_gas = vel_gas[:, 2]
+    #v_z_gas = vel_gas[:, 2]
 
     x_gas = pos_gas[:, 0]
-    y_gas = pos_gas[:, 1]
+    #y_gas = pos_gas[:, 1]
     z_gas = pos_gas[:, 2]
 
     nbins_gas = 100

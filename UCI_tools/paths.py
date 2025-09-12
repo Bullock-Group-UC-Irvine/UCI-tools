@@ -5,19 +5,19 @@ env_str = os.getenv('CONDA_DEFAULT_ENV', 'base')
 if env_str == 'base':
     env_str = ''
 else:
-    env_str += '_'
+    env_str = '_' + env_str
 home = os.path.expanduser(os.path.join(
     '~/'
 ))
 
 def ensure_user_config():
-    config_fname = env_str + 'config.ini'
+    config_fname = 'config' + env_str + '.ini'
     config_path = os.path.join(
         home, 
         config_fname
     )
     if not os.path.isfile(config_path):
-        output_dname = env_str + 'output'
+        output_dname = 'output' + env_str
         output_dir = os.path.join(home, output_dname)
         snap_times_path = (
             '/DFS-L/DATA/cosmo/grenache/omyrtaj/fofie/snapshot_times.txt'
@@ -51,10 +51,15 @@ def load_config():
     for the user defined config. If that doesn't exist, create a default in the
     home dir.
     '''
+    # If CI set the path to the config_ci.ini, the following will be something
+    # other than `False`.
     config_path = os.environ.get('MYPACKAGE_CONFIG')
     if config_path:
+        # In that case, go ahead and get the full path the .ini
         config_path = os.path.expanduser(config_path)
     else:
+        # Otherwise, check that the user has a config_<environment_name>.ini.
+        # Create one for them if they don't.
         config_path = ensure_user_config()
 
     config = configparser.ConfigParser()
