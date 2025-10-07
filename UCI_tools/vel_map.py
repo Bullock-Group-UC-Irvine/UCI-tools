@@ -41,7 +41,7 @@ def get_m12_path_olti(sim_name, host_idx, snap):
     )
     return path
 
-def load_m12_data_olti(sim_path, snap):
+def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     '''
     Load Olti's data for use with `UCI_tools.plot_vel_map.plot`. You can also
     use this with your own data at `sim_path` as long as it's an hdf5 file with
@@ -69,6 +69,12 @@ def load_m12_data_olti(sim_path, snap):
         The snapshot number corresponding to `sim_path`. It should be in string
         format with three digits. The code uses this to determine the scale
         factor and thereby physical distances.
+    xmax: float, default None
+        The absolute value of the rotated x-axis distance from the host center
+        that a particle must be at or below for the code to include it.
+    zmax: float, default None
+        The absolute value of the rotated z-axis distance from the host center
+        that a particle must be at or below for the code to include it.
 
     Returns
     -------
@@ -109,6 +115,11 @@ def load_m12_data_olti(sim_path, snap):
     from . import paths
     from . import rotate_galaxy
 
+    if xmax is None:
+        xmax = np.inf
+    if zmax is None:
+        zmax = np.inf
+
     snapshot_times = np.loadtxt(
         paths.snap_times
     )
@@ -145,6 +156,7 @@ def load_m12_data_olti(sim_path, snap):
     mass_gas = mass_gas[aux]
     jnet_gas = rotate_galaxy.calculate_ang_mom(mass_gas, pos_gas, vel_gas)
 
+    # Rotation matrix
     r_matrix_gas = rotate_galaxy.cal_rotation_matrix(
         jnet_gas,
         np.array((0.0, 0.0, 1.0))
@@ -152,16 +164,20 @@ def load_m12_data_olti(sim_path, snap):
     pos_gas = rotate_galaxy.rotate(pos_gas, r_matrix_gas)
     vel_gas = rotate_galaxy.rotate(vel_gas, r_matrix_gas)
 
+    gas_in_x = np.abs(pos_gas[:, 0]) <= xmax
+    gas_in_z = np.abs(pos_gas[:, 2]) <= zmax
+
     v_gas = np.linalg.norm(vel_gas, axis=1)
     v_max = 220
     aux = v_gas <= v_max
-    vel_gas = vel_gas[aux]
-    pos_gas = pos_gas[aux]
+    vel_gas = vel_gas[aux & gas_in_x & gas_in_z]
+    pos_gas = pos_gas[aux & gas_in_x & gas_in_z]
 
     young_mask = (sft <= (lbt + .5))
     pos_star = pos_star[young_mask]
     vel_star = vel_star[young_mask]
 
+    # Rotation matrix
     r_matrix_star = rotate_galaxy.cal_rotation_matrix(
         jnet_star,
         np.array((0.0, 0.0, 1.0))
@@ -169,10 +185,13 @@ def load_m12_data_olti(sim_path, snap):
     pos_star = rotate_galaxy.rotate(pos_star, r_matrix_star)
     vel_star = rotate_galaxy.rotate(vel_star, r_matrix_star)
 
+    stars_in_x = np.abs(pos_star[:, 0]) <= xmax
+    stars_in_z = np.abs(pos_star[:, 2]) <= zmax
+
     v_star = np.linalg.norm(vel_star, axis=1)
     aux = v_star <= v_max
-    vel_star = vel_star[aux]
-    pos_star = pos_star[aux]
+    vel_star = vel_star[aux & stars_in_x & stars_in_z]
+    pos_star = pos_star[aux & stars_in_x & stars_in_z]
 
     return pos_star, vel_star, pos_gas, vel_gas 
 
@@ -183,9 +202,13 @@ def plot(
         vel_gas,
         display_name,
         snap,
+        horiz_axis=0,
+        vert_axis=2,
+        res=100,
         gas_num=50,
         star_num=20,
-        save_plot=False):
+        save_plot=False,
+        show_plot=True):
     '''
     Plot the v_y velocity map of gas and young stars for a given simulation and
     return the data for those two maps.
@@ -253,6 +276,15 @@ def plot(
         The snapshot number corresponding to the data. It should be in string
         format with three digits. The code uses this to
         display the correct look-back time in the plot.
+    horiz_axis: int, default 0
+        The index of the axis to show horizontally on the plot. The default is 
+        the 0
+        or x-axis.
+    vert_axis: int, default 2
+        The index of the axis to show vertically on the plot. The default is
+        the 2 or z-axis.
+    res: int, default 100
+        Resolution: the number of pixels (i.e. bins) in each axis.
     gas_num: int, default 50
         The minimum number of gas particles a 2d histogram bin must have
         for it to be included.
@@ -264,6 +296,8 @@ def plot(
         in the `figures` directory specified in the user's 
         config.ini file in
         their home directory. 
+    show_plot: bool, default True
+        Whether to display the velocity map.
 
     Returns
     -------
@@ -297,25 +331,31 @@ def plot(
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
 
-    # The function takes the line of sight to be along the 1-axis (i.e. 
-    # y-axis).
-    # Therefore, x and z velocities are unnecessary.
-    #v_x_gas = vel_gas[:, 0]
-    v_y_gas = vel_gas[:, 1]  # Use for colormap
-    #v_z_gas = vel_gas[:, 2]
+    axes = [0, 1, 2]
+    # Determine which axis the user did not specify as a projection axis 
+    los_axis = np.setdiff1d(axes, [horiz_axis, vert_axis])
+    if len(los_axis) > 1:
+        # There should only be one line-of-sight axis
+        raise ValueError('Something is wrong with the axis specifications')
+    los_axis = los_axis[0]
 
-    # The function looks down the 1 axis (i.e. y-axis), so the y positional
-    # information does not get used.
-    x_gas = pos_gas[:, 0]
-    #y_gas = pos_gas[:, 1]
-    z_gas = pos_gas[:, 2]
+    # Only the `los_axis`-axis velocity is necessary.
+    v_y_gas = vel_gas[:, los_axis]  # Use for colormap
+    #v_x_gas = vel_gas[:, horiz_axis]
+    #v_z_gas = vel_gas[:, vert_axis]
 
-    nbins_gas = 100
+    # The function looks down the `los_axis`-axis and so does not use its
+    # positional
+    # information.
+    x_gas = pos_gas[:, horiz_axis]
+    #y_gas = pos_gas[:, los_axis]
+    z_gas = pos_gas[:, vert_axis]
+
     # Create 2D histogram for gas
     hist_gas, x_edges_gas, z_edges_gas = np.histogram2d(
         x_gas,
         z_gas,
-        bins=nbins_gas
+        bins=res
     )
     hist_gas += 1  # Avoid log(0)
 
@@ -334,8 +374,8 @@ def plot(
 
     for i in range(len(x_gas)):
         if (
-                0 <= x_bin_indices_gas[i] < nbins_gas 
-                and 0 <= z_bin_indices_gas[i] < nbins_gas):
+                0 <= x_bin_indices_gas[i] < res 
+                and 0 <= z_bin_indices_gas[i] < res):
             v_y_colormap_gas[
                 x_bin_indices_gas[i],
                 z_bin_indices_gas[i]
@@ -351,25 +391,23 @@ def plot(
     v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
     #**********************************************************************
 
-    # The function takes the line of sight to be along the 1-axis (i.e. 
-    # y-axis).
-    # Therefore, x and z velocities are unnecessary.
-    #v_x_star = vel_star[:, 0]
-    v_y_star = vel_star[:, 1]  # Use for colormap
-    #v_z_star = vel_star[:, 2]
+    # Only the `los_axis`-axis velocity is necessary.
+    v_y_star = vel_star[:, los_axis]  # Use for colormap
+    #v_x_star = vel_star[:, horiz_axis]
+    #v_z_star = vel_star[:, vert_axis]
 
-    # The function looks down the 1 axis (i.e. y-axis), so the y positional
-    # information does not get used.
-    x_star = pos_star[:, 0]
-    #y_star = pos_star[:, 1]
-    z_star = pos_star[:, 2]
+    # The function looks down the `los_axis`-axis and so does not use its
+    # positional
+    # information.
+    x_star = pos_star[:, horiz_axis]
+    #y_star = pos_star[:, los_axis]
+    z_star = pos_star[:, vert_axis]
 
-    nbins_star = 100
     # Create 2D histogram for stars
     hist_star, x_edges_star, z_edges_star = np.histogram2d(
         x_star,
         z_star,
-        bins=nbins_star
+        bins=res
     )
     hist_star += 1  # Avoid log(0)
 
@@ -386,8 +424,8 @@ def plot(
 
     for i in range(len(x_star)):
         if (
-                0 <= x_bin_indices_star[i] < nbins_star 
-                and 0 <= z_bin_indices_star[i] < nbins_star):
+                0 <= x_bin_indices_star[i] < res 
+                and 0 <= z_bin_indices_star[i] < res):
             v_y_colormap_star[
                 x_bin_indices_star[i], 
                 z_bin_indices_star[i]
@@ -444,84 +482,99 @@ def plot(
         vmax=vmax
     )
 
-    # Add colorbars for both plots
-    fig.colorbar(pcol_gas, ax=ax[0], label=r'Gas LOS Velocity [kms$^{-1}]$')
-    fig.colorbar(pcol_star, ax=ax[1], label=r'Star LOS Velocity [kms$^{-1}]$')
+    if show_plot or save_plot:
+        # Add colorbars for both plots
+        fig.colorbar(pcol_gas, ax=ax[0], label=r'Gas LOS Velocity [kms$^{-1}]$')
+        fig.colorbar(pcol_star, ax=ax[1], label=r'Star LOS Velocity [kms$^{-1}]$')
 
-    # Add labels and text
-    ax[0].text(
-        0.9,
-        0.9,
-        'Gas',
-        transform=ax[0].transAxes,
-        fontsize=16,
-        color='k',
-        ha='right'
-    )
-    ax[1].text(
-        0.9,
-        0.9,
-        'Young stars',
-        transform=ax[1].transAxes,
-        fontsize=16,
-        color='k',
-        ha='right'
-    )
-
-    ax[0].text(
-        0.1,
-        0.9,
-        '{0}'.format(display_name),
-        transform=ax[0].transAxes,
-        color='k',
-        fontsize=16
-    )
-    ax[0].text(
-        0.1,
-        0.85,
-        'LBT = ' + str(np.round(lbt, 2)) + ' Gyr',
-        transform=ax[0].transAxes,
-        color='k',
-        fontsize=14
-    )
-
-    # Axis labels
-    ax[0].set_ylabel('Z [kpc]', fontsize=16)
-    for i in range(len(ax)):
-        ax[i].set_xlabel('X [kpc]', fontsize=16)
-        ax[i].tick_params(
-            axis='x',
-            direction='in',
-            pad=10,
-            which='both',
-            top=True,
-            bottom=True,
+        # Add labels and text
+        ax[0].text(
+            0.9,
+            0.9,
+            'Gas',
+            transform=ax[0].transAxes,
+            fontsize=16,
             color='k',
-            length = 6,
-            width = 1.3
+            ha='right'
         )
-        ax[i].tick_params(
-            axis='y',
-            direction='in',
-            pad=10,
-            which='both',
-            left=True,
-            right=True,
+        ax[1].text(
+            0.9,
+            0.9,
+            'Stars',
+            transform=ax[1].transAxes,
+            fontsize=16,
             color='k',
-            length = 6,
-            width = 1.3
+            ha='right'
         )
-        ax[i].set_xlim(-17.5, 17.5)
-        ax[i].set_ylim(-17.5, 17.5)
 
-    # Tight layout and spacing
-    plt.tight_layout()
+        ax[0].text(
+            0.1,
+            0.9,
+            '{0}'.format(display_name),
+            transform=ax[0].transAxes,
+            color='k',
+            fontsize=16
+        )
+        ax[0].text(
+            0.1,
+            0.85,
+            'LBT = ' + str(np.round(lbt, 2)) + ' Gyr',
+            transform=ax[0].transAxes,
+            color='k',
+            fontsize=14
+        )
 
-    if save_plot:
-        plt.savefig(os.path.join(
-            paths.figures, 
-            'vel_map_{0}_snap{1}.png'.format(display_name.lower(), snap)
-        ))
-    plt.show()
+        # Axis labels
+        axis_labels = ['$x$', '$y$', '$z$']
+        ax[0].set_ylabel('{0} [kpc]'.format(axis_labels[vert_axis]), fontsize=16)
+        for i in range(len(ax)):
+            ax[i].set_xlabel(
+                '{0} [kpc]'.format(axis_labels[horiz_axis]),
+                fontsize=16
+            )
+            ax[i].tick_params(
+                axis='x',
+                direction='in',
+                pad=10,
+                which='both',
+                top=True,
+                bottom=True,
+                color='k',
+                length = 6,
+                width = 1.3
+            )
+            ax[i].tick_params(
+                axis='y',
+                direction='in',
+                pad=10,
+                which='both',
+                left=True,
+                right=True,
+                color='k',
+                length = 6,
+                width = 1.3
+            )
 
-    return v_y_colormesh_gas, v_y_colormesh_star 
+        # Tight layout and spacing
+        plt.tight_layout()
+
+        if save_plot:
+            plt.savefig(os.path.join(
+                paths.figures, 
+                'vel_map_{0}_snap{1}.png'.format(display_name.lower(), snap)
+            ))
+        if show_plot:
+            plt.show()
+    else:
+        plt.close()
+
+    return (
+        v_y_colormesh_gas,
+        v_y_colormesh_star,
+        pcol_gas,
+        pcol_star,
+        x_edges_star,
+        z_edges_star,
+        x_edges_gas,
+        z_edges_gas
+    )
