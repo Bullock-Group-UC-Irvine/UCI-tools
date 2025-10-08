@@ -51,7 +51,7 @@ def ensure_user_config():
         print('snap_times added to uci_tools_paths')
 
     with open(config_path, 'w') as f:
-        f.write(defaults)
+        config.write(f)b
 
     return config_path
 
