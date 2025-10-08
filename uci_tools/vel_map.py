@@ -112,7 +112,7 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     '''
     import h5py
     import numpy as np
-    from . import paths
+    from . import config 
     from . import rotate_galaxy
 
     if xmax is None:
@@ -121,7 +121,7 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
         zmax = np.inf
 
     snapshot_times = np.loadtxt(
-        paths.snap_times
+        config.config['uci_tools_paths']['snap_times']
     )
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
@@ -323,10 +323,10 @@ def plot(
     import astropy.cosmology as cosmo
     import astropy
 
-    from . import paths
+    from . import config
 
     snapshot_times = np.loadtxt(
-        paths.snap_times
+        config.config['uci_tools_paths']['snap_times']
     )
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
@@ -484,8 +484,16 @@ def plot(
 
     if show_plot or save_plot:
         # Add colorbars for both plots
-        fig.colorbar(pcol_gas, ax=ax[0], label=r'Gas LOS Velocity [kms$^{-1}]$')
-        fig.colorbar(pcol_star, ax=ax[1], label=r'Star LOS Velocity [kms$^{-1}]$')
+        fig.colorbar(
+            pcol_gas,
+            ax=ax[0],
+            label=r'Gas LOS Velocity [kms$^{-1}]$'
+        )
+        fig.colorbar(
+            pcol_star,
+            ax=ax[1],
+            label=r'Star LOS Velocity [kms$^{-1}]$'
+        )
 
         # Add labels and text
         ax[0].text(
@@ -526,7 +534,10 @@ def plot(
 
         # Axis labels
         axis_labels = ['$x$', '$y$', '$z$']
-        ax[0].set_ylabel('{0} [kpc]'.format(axis_labels[vert_axis]), fontsize=16)
+        ax[0].set_ylabel(
+            '{0} [kpc]'.format(axis_labels[vert_axis]),
+            fontsize=16
+        )
         for i in range(len(ax)):
             ax[i].set_xlabel(
                 '{0} [kpc]'.format(axis_labels[horiz_axis]),
@@ -560,7 +571,7 @@ def plot(
 
         if save_plot:
             plt.savefig(os.path.join(
-                paths.figures, 
+                config.config['uci_tools_paths']['output'], 
                 'vel_map_{0}_snap{1}.png'.format(display_name.lower(), snap)
             ))
         if show_plot:

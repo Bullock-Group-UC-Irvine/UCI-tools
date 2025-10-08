@@ -1,20 +1,9 @@
-try:
-    '''
-    The user should have a paths.py script defining the idiosyncratic
-    locations of folders which the methods below need to use.
-    E.g. The contents of the user's paths.py might be as follows:
-        data = '$HOME/project/data/'
-        paper = '$HOME/project/paper' 
-    This is necessary because each user and each project will have a
-    different file structure
-    '''
-    import paths
-except:
-    pass
-
 def save_var_latex(key, value, fname='data.txt'):
     '''
-    Save a data point do a file in paths.paper so the user's LaTeX paper can
+    Save a data point, whether a prediction or its uncertainty, to the file 
+    `fname` in the `paper_dir` defined in the 
+    envrionment's
+    config file so the user's LaTeX paper can
     use it.
 
     Parameters
@@ -26,18 +15,19 @@ def save_var_latex(key, value, fname='data.txt'):
         to use. The code is written so any object (e.g. float, int, str) should
         work, but it's probably best to use a str.
     fname: str, default 'data.txt'
-        The file in paths.paper to which the code should save the prediction 
-        and its uncertainty.
+        The file in the config file's `paper_dir` to which the code should save
+        the data point
 
     Returns
     -------
     None
     '''
     import csv
+    from . import config
 
     dict_var = {}
 
-    file_path = paths.paper + fname 
+    file_path = config.config['uci_tools_paths']['paper_dir'] + fname 
 
     try:
         with open(file_path, newline="") as file:
@@ -61,8 +51,8 @@ def save_var_latex(key, value, fname='data.txt'):
 
 def save_prediction(string, y, dy, fname='data.txt'):
     '''
-    Save a prediction and its uncertainty to `fname` to be used by a Latex 
-    file.
+    Save a prediction and its uncertainty to `fname` in the `paper_dir` defined
+    in the environment's config file so the user's LaTeX paper can use it.
 
     Parameters
     ----------
@@ -81,7 +71,8 @@ def save_prediction(string, y, dy, fname='data.txt'):
              If asymmetric, `dy=np.array(['0.1', '0.2'])`.
 
     fname: str, default 'data.txt'
-        The file in paths.paper to which the code should save the prediction 
+        The file in the config file's `paper_dir` to which the code will save
+        the prediction 
         and its uncertainty.
 
     Returns
