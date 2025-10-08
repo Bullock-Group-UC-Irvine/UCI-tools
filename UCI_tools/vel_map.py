@@ -43,7 +43,18 @@ def get_m12_path_olti(sim_name, host_idx, snap):
 
 def load_m12_data_olti(sim_path, snap):
     '''
-    Load Olti's data for use with `UCI_tools.plot_vel_map.plot`
+    Load Olti's data for use with `UCI_tools.plot_vel_map.plot`. You can also
+    use this with your own data at `sim_path` as long as it's an hdf5 file with
+    the following `h5py.Dataset`s:
+        'gas_coord_unroated'
+        'gas_vel_unrotated'
+        'jnet_gas'
+        'gas_temp'
+        'mass_gas'
+        'star_coord_unrotated'
+        'star_vel_unrotated',
+        'sft_Gyr',
+        'jnet_young_star'
 
     Parameters
     ----------
@@ -61,73 +72,124 @@ def load_m12_data_olti(sim_path, snap):
 
     Returns
     -------
-    data_out: dict
-        A dictionary containing the data that `UCI_tools.plot_vel_map.plot`
-        requires. Keys are as follows:
-            'pos_gas': The centered, unrotated position vectors of the
-                simulation's gas particles in physical kpc
-            'vel_gas': The unrotated velocity vectors in Cartesian coordinates
-                of the gas particles, 
-                relative to
-                the host center
-            'jnet_gas': The net specific angular momentum vector of all the 
-                gas within 20 kpc of the host center
-            'temp': The temperature of the gas particles in Kelvin
-            'mass_gas': The mass of each gas particle in physical units of 
-                M_sun
-            'pos_star': The centered, unrotated position vector of each star
-                particle in the simulation in physical kpc
-            'vel_star': The unrotated velocity vector in Cartesian coordinates
-                of each star particle,
-                relative to the host center
-            'sft': The time in Gyr since the formation of each star particle,
-                relative to the given snapshot.
-            'jnet_star': The net specific angular momentum vector of all the
-                stars within 20 kpc of the host center
+    pos_star: np.ndarray, shape (N_stars, 3)
+        The centered, rotated position vectors of the
+        simulation's star particles in Cartesian coordinates in physical kpc.
+        The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the young stars.
+    vel_star: np.ndarray, shape (N_stars, 3)
+        The rotated velocity vectors of the star particle in Cartesian
+        coordinates
+        relative to
+        the host center. The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the cold gas (T <= 1e4 K)
+    pos_gas: np.ndarray, shape (N_gas, 3)
+        The centered, rotated position vectors of the
+        simulation's gas particles in Cartesian coordinates in physical kpc.
+        The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the cold gas 
+        (T <= 1e4 K)
+    vel_gas: np.ndarray, shape (N_gas, 3)
+        The rotated velocity vectors of the gas particle in Cartesian
+        coordinates
+        relative to
+        the host center. The function rotated them
+        so the the x- and y-axes are in the plane of the disc by aligning 
+        the z-axis 
+        with the net angular momentum of the cold gas (T <= 1e4 K)
     '''
     import h5py
     import numpy as np
     from . import paths
+    from . import rotate_galaxy
 
     snapshot_times = np.loadtxt(
         paths.snap_times
     )
+    time = float(snapshot_times[int(snap)][3])
+    lbt = np.abs(time - 13.8)
     a = float(snapshot_times[int(snap)][1])
 
-    data_out = {}
-    with h5py.File(sim_path, 'r') as data:
-        host_center = np.array(data['host_center'])
-        host_vel = np.array(data['host_velocity'])
+    data = {}
+    with h5py.File(sim_path, 'r') as f:
+        host_center = np.array(f['host_center'])
+        host_vel = np.array(f['host_velocity'])
 
         # Load gas data
-        data_out['pos_gas'] = a * (
-            np.array(data['gas_coord_unrotated']) - host_center
+        pos_gas = a * (
+            np.array(f['gas_coord_unrotated']) - host_center
         )
-        data_out['vel_gas'] = np.array(data['gas_vel_unrotated']) - host_vel
-        data_out['jnet_gas'] = np.array(data['jnet_gas'])
-        data_out['temp'] = np.array(data['gas_temp'])
-        data_out['mass_gas'] = np.array(data['mass_gas'])
+        vel_gas = np.array(f['gas_vel_unrotated']) - host_vel
+        jnet_gas = np.array(f['jnet_gas'])
+        temp = np.array(f['gas_temp'])
+        mass_gas = np.array(f['mass_gas'])
         
         # Load star data
-        data_out['pos_star'] = a * (
-            np.array(data['star_coord_unrotated']) - host_center
+        pos_star = a * (
+            np.array(f['star_coord_unrotated']) - host_center
         )
-        data_out['vel_star'] = np.array(data['star_vel_unrotated']) - host_vel
-        data_out['sft'] = np.array(data['sft_Gyr'])
-        data_out['jnet_star'] = np.array(data['jnet_young_star'])
-    return data_out
+        vel_star = np.array(f['star_vel_unrotated']) - host_vel
+        sft = np.array(f['sft_Gyr'])
+        jnet_star = np.array(f['jnet_young_star'])
+
+    aux = temp < 1e4
+    temp = temp[aux]
+    pos_gas = pos_gas[aux]
+    vel_gas = vel_gas[aux]
+    mass_gas = mass_gas[aux]
+    jnet_gas = rotate_galaxy.calculate_ang_mom(mass_gas, pos_gas, vel_gas)
+
+    r_matrix_gas = rotate_galaxy.cal_rotation_matrix(
+        jnet_gas,
+        np.array((0.0, 0.0, 1.0))
+    )
+    pos_gas = rotate_galaxy.rotate(pos_gas, r_matrix_gas)
+    vel_gas = rotate_galaxy.rotate(vel_gas, r_matrix_gas)
+
+    v_gas = np.linalg.norm(vel_gas, axis=1)
+    v_max = 220
+    aux = v_gas <= v_max
+    vel_gas = vel_gas[aux]
+    pos_gas = pos_gas[aux]
+
+    young_mask = (sft <= (lbt + .5))
+    pos_star = pos_star[young_mask]
+    vel_star = vel_star[young_mask]
+
+    r_matrix_star = rotate_galaxy.cal_rotation_matrix(
+        jnet_star,
+        np.array((0.0, 0.0, 1.0))
+    )
+    pos_star = rotate_galaxy.rotate(pos_star, r_matrix_star)
+    vel_star = rotate_galaxy.rotate(vel_star, r_matrix_star)
+
+    v_star = np.linalg.norm(vel_star, axis=1)
+    aux = v_star <= v_max
+    vel_star = vel_star[aux]
+    pos_star = pos_star[aux]
+
+    return pos_star, vel_star, pos_gas, vel_gas 
 
 def plot(
-        data,
+        pos_star,
+        vel_star,
+        pos_gas,
+        vel_gas,
         display_name,
         snap,
         gas_num=50,
         star_num=20,
-        save_plot=True):
+        save_plot=False):
     '''
     Plot the v_y velocity map of gas and young stars for a given simulation and
-    return the data for those two maps. 
-    
+    return the data for those two maps.
+     
     The grid orientation of the returned maps 
     follows the standard matrix convention specified in the 
     `matplotlib.axes.Axes.pcolormesh` documentation; They have shape 
@@ -151,27 +213,40 @@ def plot(
 
     Parameters
     ----------
-    data: dict
-        A dictionary containing the data data that `UCI_tools.plot_vel_map`
-        requires. It must contain the following keys:
-            'pos_gas': The centered, unrotated position vectors of the
-                simulation's gas particles in physical kpc
-            'vel_gas': The unrotated velocity vectors in Cartesian coordinates
-                of the gas particles, 
-                relative to
-                the host center
-            'temp': The temperature of the gas particles in Kelvin
-            'mass_gas': The mass of each gas particle in physical units of 
-                M_sun
-            'pos_star': The centered, unrotated position vector of each star
-                particle in the simulation in physical kpc
-            'vel_star': The unrotated velocity vector in Cartesian coordinates
-                of each star particle,
-                relative to the host center
-            'sft': The time in Gyr since the formation of each star particle,
-                relative to the given snapshot.
-            'jnet_star': The net specific angular momentum vector of all the
-                stars within 20 kpc of the host center
+    pos_gas: np.ndarray, shape (N_gas, 3)
+        Cartesian position vectors relative to the host center, in physical
+        kpc, of the
+        gas particles whose velocities the user wants to map.
+        The resulting velocity map assumes the line of sight is down the 1 axis
+        (or y-axis). If the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum, this is analagous to
+        looking into the disc.
+    vel_gas: np.ndarray, shape (N_gas, 3)
+        Cartesian velocity vectors relative to the host center, in physical
+        km/s, of the gas particles whose
+        velocities the user wants to map.
+        The resulting velocity map assumes the line of sight is down the 1 axis
+        (or y-axis). Therefore, this function maps the 1-axis velocities. If
+        the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum, this is analagous to
+        looking into the disc.
+    pos_star: np.ndarray, shape (N_stars, 3)
+        Cartesian position vectors relative to the host center, in physical
+        kpc, of the star
+        particles whose velocities the user wants to map.
+        The resulting velocity map assumes the line of sight is down the 1 axis
+        (or y-axis). If the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum, this is analagous to
+        looking into the disc.
+    vel_star: np.ndarray, shape (N_stars, 3)
+        Cartesian velocity vectors relative to the host center, in physical
+        km/s, of the gas particles whose
+        velocities the user wants to map.
+        The resulting velocity map assumes the line of sight is down the 1 axis
+        (or y-axis). Therefore, this function maps the 1-axis velocities. If
+        the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum, this is analagous to
+        looking into the disc.
     display_name: str 
         Simulation name to show in the plot.
     snap: str
@@ -211,10 +286,10 @@ def plot(
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
 
-    from . import paths
+    import astropy.cosmology as cosmo
+    import astropy
 
-    from . import rotate_galaxy
-    from .rotate_galaxy import calculate_ang_mom, cal_rotation_matrix
+    from . import paths
 
     snapshot_times = np.loadtxt(
         paths.snap_times
@@ -222,29 +297,17 @@ def plot(
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
 
-    aux = data['temp'] < 1e4
-    temp = data['temp'][aux]
-    pos_gas = data['pos_gas'][aux]
-    vel_gas = data['vel_gas'][aux]
-    mass_gas = data['mass_gas'][aux]
-    jnet_gas = calculate_ang_mom(mass_gas, pos_gas, vel_gas)
-
-    r_matrix_gas = cal_rotation_matrix(jnet_gas, np.array((0.0, 0.0, 1.0)))
-    pos_gas = rotate_galaxy.rotate(pos_gas, r_matrix_gas)
-    vel_gas = rotate_galaxy.rotate(vel_gas, r_matrix_gas)
-
-    v_gas = np.linalg.norm(vel_gas, axis=1)
-    v_max = 220
-    aux = v_gas <= v_max
-    vel_gas = vel_gas[aux]
-    pos_gas = pos_gas[aux]
-
-    v_x_gas = vel_gas[:, 0]
+    # The function takes the line of sight to be along the 1-axis (i.e. 
+    # y-axis).
+    # Therefore, x and z velocities are unnecessary.
+    #v_x_gas = vel_gas[:, 0]
     v_y_gas = vel_gas[:, 1]  # Use for colormap
-    v_z_gas = vel_gas[:, 2]
+    #v_z_gas = vel_gas[:, 2]
 
+    # The function looks down the 1 axis (i.e. y-axis), so the y positional
+    # information does not get used.
     x_gas = pos_gas[:, 0]
-    y_gas = pos_gas[:, 1]
+    #y_gas = pos_gas[:, 1]
     z_gas = pos_gas[:, 2]
 
     nbins_gas = 100
@@ -283,33 +346,22 @@ def plot(
     count_map_gas[count_map_gas == 0] = 1
     # Finally, calculating the avg v_y in each bin:
     v_y_colormap_gas /= count_map_gas
-    #**********************************************************************
 
     # Apply the mask to remove bins with fewer than `gas_num` gas particles
     v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
+    #**********************************************************************
 
-    young_mask = (data['sft'] <= (lbt + 0.5))
-    pos_star = data['pos_star'][young_mask]
-    vel_star = data['vel_star'][young_mask]
-
-    r_matrix_star = cal_rotation_matrix(
-        data['jnet_star'],
-        np.array((0.0, 0.0, 1.0))
-    )
-    pos_star = rotate_galaxy.rotate(pos_star, r_matrix_star)
-    vel_star = rotate_galaxy.rotate(vel_star, r_matrix_star)
-
-    v_star = np.linalg.norm(vel_star, axis=1)
-    aux = v_star <= v_max
-    vel_star = vel_star[aux]
-    pos_star = pos_star[aux]
-
-    v_x_star = vel_star[:, 0]
+    # The function takes the line of sight to be along the 1-axis (i.e. 
+    # y-axis).
+    # Therefore, x and z velocities are unnecessary.
+    #v_x_star = vel_star[:, 0]
     v_y_star = vel_star[:, 1]  # Use for colormap
-    v_z_star = vel_star[:, 2]
+    #v_z_star = vel_star[:, 2]
 
+    # The function looks down the 1 axis (i.e. y-axis), so the y positional
+    # information does not get used.
     x_star = pos_star[:, 0]
-    y_star = pos_star[:, 1]
+    #y_star = pos_star[:, 1]
     z_star = pos_star[:, 2]
 
     nbins_star = 100

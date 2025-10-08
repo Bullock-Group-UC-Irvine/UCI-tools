@@ -3,7 +3,7 @@ from . import (
     staudt_tools,
     fire_io,
     rotate_galaxy,
-    plot_vel_map,
+    vel_map,
     fire_tools,
     paths
 )
@@ -17,6 +17,6 @@ __all__ = [
     'staudt_tools',
     'fire_io',
     'rotate_galaxy',
-    'plot_vel_map',
+    'vel_map',
     'fire_tools'
 ]
