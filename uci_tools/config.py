@@ -34,8 +34,6 @@ def ensure_user_config():
             .format(config_fname, output_dname, __package__, env_str)
         )
 
-    if not os.path.isfile(config_path):
-
     if not config.has_option('uci_tools_paths', 'output_dir'):
         output_dname = 'output' + env_str
         output_dir = os.path.join(home, output_dname)
