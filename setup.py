@@ -1,12 +1,15 @@
 import setuptools
-from UCI_tools import __version__
+
+# Get the version number.
+v_dict = {}
+exec(open('UCI_tools/__version__.py').read(), v_dict)
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="UCI_tools",
-    version=__version__,
+    version=v_dict['__version__'],
     author="UCI Bullock Galaxy Dark Matter Group",
     author_email="bullock@uci.edu",
     description="Software tools developed by and commonly used by the group.",
@@ -25,7 +28,8 @@ setuptools.setup(
         'h5py',
         'progressbar',
         'nbformat',
-        'astropy'
+        'astropy',
+        'tqdm'
     ],
     entry_points={
         'console_scripts': [
