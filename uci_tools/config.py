@@ -31,7 +31,7 @@ def ensure_user_config():
             ' {0}.'
             ' If you want to customize anything in the config file,'
             ' you can do so safely.'
-            .format(config_fname, output_dname, __package__, env_str)
+            .format(config_fname, None, __package__, env_str)
         )
 
     if not config.has_option('uci_tools_paths', 'output_dir'):
