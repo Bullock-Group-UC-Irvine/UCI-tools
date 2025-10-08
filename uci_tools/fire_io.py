@@ -412,7 +412,7 @@ def load_cropped_data(galname, getparts='all', verbose=True, cropped_run=None):
     if verbose:
         print('Loading {0:s}'.format(galname))
 
-    from UCI_tools.staudt_tools import build_direcs 
+    from uci_tools.staudt_tools import build_direcs 
 
     min_radius = 0. #kpc
     max_radius = 10. #kpc

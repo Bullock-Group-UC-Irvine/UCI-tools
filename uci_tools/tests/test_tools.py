@@ -4,8 +4,8 @@ import numpy.testing as npt
 import unittest
 import h5py
 
-import UCI_tools.tools as tools
-import UCI_tools as uci
+import uci_tools.tools as tools
+import uci_tools as uci
 
 ###############################################################################
 
@@ -20,7 +20,7 @@ class TestLoadFIREData( unittest.TestCase ):
         import os
 
         sim_dir = (
-            './UCI_tools/tests/test_data/downsampled_sim_data/fire_sim/output'
+            './uci_tools/tests/test_data/downsampled_sim_data/fire_sim/output'
         )
         snapshot = 600
         path = os.path.join(
@@ -90,7 +90,7 @@ class TestVelMap(unittest.TestCase):
 
     def test_vel_map(self):
         data = uci.vel_map.load_m12_data_olti(
-            './UCI_tools/tests/test_data/downsampled_sim_data/fire_sim/'
+            './uci_tools/tests/test_data/downsampled_sim_data/fire_sim/'
                 'thelma_downsampled_for_vel_map.h5',
             '600'
         )
@@ -103,7 +103,7 @@ class TestVelMap(unittest.TestCase):
             save_plot=False
         )
         with h5py.File(
-                './UCI_tools/tests/test_data/'
+                './uci_tools/tests/test_data/'
                     'thelma_test_vel_maps.h5',
                 'r') as f:
             gas_map_answer = f['gas'][()]

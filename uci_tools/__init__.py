@@ -5,7 +5,6 @@ from . import (
     rotate_galaxy,
     vel_map,
     fire_tools,
-    paths
 )
 
 from .__version__ import __version__

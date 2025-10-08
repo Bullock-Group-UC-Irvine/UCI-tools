@@ -1134,7 +1134,7 @@ def read_part(snapdir_path):
         ) #Unit: km/s
     return part, header
 
-# Commenting this because it's already in UCI_tools.tools -PS
+# Commenting this because it's already in uci_tools.tools -PS
 #def fe_over_h_ratios(mfrac,he_frac,fe_frac):
 #    h_frac=1-mfrac-he_frac
 #    #...some constants
@@ -1169,7 +1169,7 @@ def o_over_fe_ratios(o_frac,fe_frac):
     ab_o_fe = np.asarray(np.log10(o_fe_num/sun_o_fe_frac))
     return ab_o_fe
 
-# Commenting this because it's already in UCI_tools.tools -PS
+# Commenting this because it's already in uci_tools.tools -PS
 #def calc_cyl_vels(v_vecs_rot, coords_rot):
 #    '''
 #    Put velocities into cylindrical coordinates given Cartesian velocites and 

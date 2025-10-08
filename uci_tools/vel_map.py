@@ -43,7 +43,7 @@ def get_m12_path_olti(sim_name, host_idx, snap):
 
 def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     '''
-    Load Olti's data for use with `UCI_tools.plot_vel_map.plot`. You can also
+    Load Olti's data for use with `uci_tools.plot_vel_map.plot`. You can also
     use this with your own data at `sim_path` as long as it's an hdf5 file with
     the following `h5py.Dataset`s:
         'gas_coord_unroated'
@@ -60,10 +60,10 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     ----------
     sim_path: str 
         The path to the simulation the user wants to analyze. The user could
-        use UCI_tools.plot_vel_map.get_m12_path_olti to easily generate a path
+        use uci_tools.plot_vel_map.get_m12_path_olti to easily generate a path
         that leads to Olti's files, or they could supply their own path.
         Another option would be for the user to write their own `get_m12_path`
-        method in UCI_tools.plot_vel_map and make a pull request so everyone
+        method in uci_tools.plot_vel_map and make a pull request so everyone
         has it.
     snap: str
         The snapshot number corresponding to `sim_path`. It should be in string

@@ -1,7 +1,7 @@
 import numpy as np
 
 # Importing this here in case anything that uses this package expects 
-# coord_to_r to be accessible from UCI_tools.rotate_galaxy
+# coord_to_r to be accessible from uci_tools.rotate_galaxy
 from .fire_tools import coord_to_r
 
 # ====================== function part ======================
