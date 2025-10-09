@@ -34,21 +34,32 @@ def ensure_user_config():
             .format(config_fname, None, __package__, env_str)
         )
 
-    if not config.has_option('uci_tools_paths', 'output_dir'):
+    if not config.has_section(f'{__package__}_paths'):
+        config.add_section(f'{__package__}_paths')
+        print(
+            f'{__package__}_paths section added to {config_fname}'
+            f'\n\nNOTE: Anything this code adds to {__package__}_paths assumes'
+            f' you are on UC Irvine\'s Greenplanet cluster in the cosmo'
+            f' group. If you are not, your code will not work with these'
+            f' paths,'
+            f' and you must properly configure {config_fname}.\n'
+        )
+
+    if not config.has_option(f'{__package__}_paths', 'output_dir'):
         output_dname = 'output' + env_str
         output_dir = os.path.join(home, output_dname)
-        config.set('uci_tools_paths', 'output_dir', output_dir)
+        config.set(f'{__package__}_paths', 'output_dir', output_dir)
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
             print(f'{output_dir} created')
         print('output_dir added to gallearn_paths')
 
-    if not config.has_option('uci_tools_paths', 'snap_times'):
+    if not config.has_option(f'{__package__}_paths', 'snap_times'):
         snap_times_path = (
             '/DFS-L/DATA/cosmo/grenache/omyrtaj/fofie/snapshot_times.txt'
         )
-        config.set('uci_tools', 'snap_times', snap_times_path)
-        print('snap_times added to uci_tools_paths')
+        config.set(f'{__package__}_paths', 'snap_times', snap_times_path)
+        print(f'snap_times added to {__package__}_paths')
 
     with open(config_path, 'w') as f:
         config.write(f)

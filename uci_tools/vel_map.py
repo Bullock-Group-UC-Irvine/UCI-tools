@@ -43,7 +43,7 @@ def get_m12_path_olti(sim_name, host_idx, snap):
 
 def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     '''
-    Load Olti's data for use with `uci_tools.plot_vel_map.plot`. You can also
+    Load Olti's data for use with `uci_tools.vel_map.plot`. You can also
     use this with your own data at `sim_path` as long as it's an hdf5 file with
     the following `h5py.Dataset`s:
         'gas_coord_unroated'
@@ -60,10 +60,10 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     ----------
     sim_path: str 
         The path to the simulation the user wants to analyze. The user could
-        use uci_tools.plot_vel_map.get_m12_path_olti to easily generate a path
+        use uci_tools.vel_map.get_m12_path_olti to easily generate a path
         that leads to Olti's files, or they could supply their own path.
         Another option would be for the user to write their own `get_m12_path`
-        method in uci_tools.plot_vel_map and make a pull request so everyone
+        method in uci_tools.vel_map and make a pull request so everyone
         has it.
     snap: str
         The snapshot number corresponding to `sim_path`. It should be in string
@@ -301,16 +301,22 @@ def plot(
 
     Returns
     -------
-    v_y_colormesh_gas: np.ndarray
+    velmap_gas: np.ndarray
         The gas velocity colormap data for use with 
         `matplotlib.axes.Axis.pcolormesh`. X data is along the 1 axis. Z data
         is along the 0 axis. The user can directly input this into
         `pcolormesh`.
-    v_y_colormesh_star: np.ndarray
+    velmap_star: np.ndarray
         The young-star velocity colormap data for use with 
         `matplotlib.axes.Axis.pcolormesh`. X data is along the 1 axis. Z data
         is along the 0 axis. The user can directly input this into
         `pcolormesh`.
+    x_edges_gas
+    z_edges_gas
+    x_edges_star
+    z_edges_star
+    quadmesh_gas
+    quadmesh_star
     '''
 
     import os
@@ -357,6 +363,12 @@ def plot(
         z_gas,
         bins=res
     )
+    # Need to reverse z_edges so that z_edges[0] is the highest z. This is what
+    # matplotlib.pyplot.imshow expects, and it makes sense when one considers
+    # that when printing the mesh data, high z should be on the top of the
+    # matrix.
+    z_edges_gas = z_edges_gas[::-1]
+
     hist_gas += 1  # Avoid log(0)
 
     # Apply the mask to keep bins with at least `gas_num` gas particles
@@ -409,6 +421,12 @@ def plot(
         z_star,
         bins=res
     )
+    # Need to reverse z_edges so that z_edges[0] is the highest z. This is what
+    # matplotlib.pyplot.imshow expects, and it makes sense when one considers
+    # that when printing the mesh data, high z should be on the top of the
+    # matrix.
+    z_edges_star = z_edges_star[::-1]
+
     hist_star += 1  # Avoid log(0)
 
     # Apply the mask to keep bins with at least `star_num` star particles
@@ -459,24 +477,24 @@ def plot(
     # expects the column number as x and the row number as y 
     # Therefore, we must provide the transpose of `H` to
     # `pcolormesh`.
-    v_y_colormesh_gas = v_y_colormap_gas.T
-    v_y_colormesh_star = v_y_colormap_star.T
+    velmap_gas = v_y_colormap_gas.T
+    velmap_star = v_y_colormap_star.T
 
     # Plot gas with colormap based on v_y_gas
-    pcol_gas = ax[0].pcolormesh(
+    quadmesh_gas = ax[0].pcolormesh(
         x_edges_gas,
         z_edges_gas,
-        v_y_colormesh_gas,
+        velmap_gas,
         cmap=plt.cm.seismic_r,
         vmin=vmin,
         vmax=vmax
     )
 
     # Plot stars with colormap based on v_y_star
-    pcol_star = ax[1].pcolormesh(
+    quadmesh_star = ax[1].pcolormesh(
         x_edges_star,
         z_edges_star,
-        v_y_colormesh_star,
+        velmap_star,
         cmap=plt.cm.seismic_r,
         vmin=vmin,
         vmax=vmax
@@ -485,12 +503,12 @@ def plot(
     if show_plot or save_plot:
         # Add colorbars for both plots
         fig.colorbar(
-            pcol_gas,
+            quadmesh_gas,
             ax=ax[0],
             label=r'Gas LOS Velocity [kms$^{-1}]$'
         )
         fig.colorbar(
-            pcol_star,
+            quadmesh_star,
             ax=ax[1],
             label=r'Star LOS Velocity [kms$^{-1}]$'
         )
@@ -580,12 +598,12 @@ def plot(
         plt.close()
 
     return (
-        v_y_colormesh_gas,
-        v_y_colormesh_star,
-        pcol_gas,
-        pcol_star,
+        velmap_gas,
+        velmap_star,
+        x_edges_gas,
+        z_edges_gas,
         x_edges_star,
         z_edges_star,
-        x_edges_gas,
-        z_edges_gas
+        quadmesh_gas,
+        quadmesh_star,
     )
