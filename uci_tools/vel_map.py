@@ -93,6 +93,8 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
         so the the x- and y-axes are in the plane of the disc by aligning 
         the z-axis 
         with the net angular momentum of the cold gas (T <= 1e4 K)
+    mass_star: np.ndarray, shape (N_stars,)
+        Masses of the star particles in units of 1e10 M_sun
     pos_gas: np.ndarray, shape (N_gas, 3)
         The centered, rotated position vectors of the
         simulation's gas particles in Cartesian coordinates in physical kpc.
@@ -129,6 +131,7 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
 
     data = {}
     with h5py.File(sim_path, 'r') as f:
+        print(f.keys())
         host_center = np.array(f['host_center'])
         host_vel = np.array(f['host_velocity'])
 
@@ -148,6 +151,7 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
         vel_star = np.array(f['star_vel_unrotated']) - host_vel
         sft = np.array(f['sft_Gyr'])
         jnet_star = np.array(f['jnet_young_star'])
+        mass_star = np.array(f['mass'])
 
     aux = temp < 1e4
     temp = temp[aux]
@@ -193,20 +197,114 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     vel_star = vel_star[aux & stars_in_x & stars_in_z]
     pos_star = pos_star[aux & stars_in_x & stars_in_z]
 
-    return pos_star, vel_star, pos_gas, vel_gas 
+    mass_star /= 1.e10
+    mass_gas /= 1.e10
+    
+    return pos_star, vel_star, mass_star, pos_gas, vel_gas, mass_gas
+
+def calc_vmap(coords, vs, ms, los_axis, horiz_axis, vert_axis, res, min_den):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    # Only the `los_axis`-axis velocity is necessary.
+    v_y = vs[:, los_axis]  # Use for colormap
+    # Need to subract off the average velocity. Gas may be moving differently
+    # from the halo.
+    mass_weighted_v = np.average(v_y, weights=ms)
+    avg_v = v_y.mean()
+    v_y -= mass_weighted_v
+
+    # The function looks down the `los_axis`-axis and so does not use its
+    # positional
+    # information.
+    x = coords[:, horiz_axis]
+    #y = coords[:, los_axis]
+    z = coords[:, vert_axis]
+
+    # Create 2D histogram
+    hist, x_edges, z_edges = np.histogram2d(
+        x,
+        z,
+        bins=res
+    )
+    # Need to reverse z_edges so that z_edges[0] is the highest z. This is what
+    # matplotlib.pyplot.imshow expects, and it makes sense when one considers
+    # that when printing the mesh data, high z should be on the top of the
+    # matrix.
+    z_edges = z_edges[::-1]
+    hist = hist[:, ::-1]
+
+    hist += 1  # Avoid log(0)
+
+    #**********************************************************************
+    # Bin the v_y values and create a colormap based on the average 
+    # v_y in each bin
+
+    # Get indices of the x and z locations into which each particle falls
+    x_bin_indices = np.digitize(x, x_edges) - 1
+    z_bin_indices = np.digitize(z, z_edges) - 1
+    v_y_colormap = np.zeros_like(hist)
+    surf_den_map = np.zeros_like(hist)
+    count_map = np.zeros_like(hist)
+
+    bin_area = (
+        (x_edges.max() - x_edges.min()) / (len(x_edges) - 1.)
+        * (z_edges.max() - z_edges.min()) / (len(z_edges) - 1.)
+    )
+    for i in range(len(x)):
+        # For single particle, add its velocity to its position in the
+        # velocity map, add a 1 to its position in the
+        # count map, and add it smass to the mass map.
+        if (
+                0 <= x_bin_indices[i] < res 
+                and 0 <= z_bin_indices[i] < res):
+            # We use `< res`, not `<= res` because np.digitize with right=False
+            # assigns x to a bin beyond the histogram when x == x_edges.max().
+            # i.e. Without this, we would have some `i` that are beyond
+            # `len(x_bin_indices) - 1`
+            v_y_colormap[
+                x_bin_indices[i],
+                z_bin_indices[i]
+            ] += v_y[i]
+            count_map[x_bin_indices[i], z_bin_indices[i]] += 1
+            surf_den_map[x_bin_indices[i], z_bin_indices[i]] += (
+                ms[i] / bin_area
+            )
+    
+    # Convert surface density map from 1e10 M_sun / kpc to M_sun / kpc
+    surf_den_map *= 1.e10 
+    #masses = surf_den_map.flatten()
+    #bin_start = np.log10(np.sort(list(set(masses)))[1])
+    #bins = np.logspace(bin_start, np.log10(masses.max()), 50)
+    #plt.hist(masses, bins=bins)
+    #plt.xscale('log')
+    #plt.yscale('log')
+    #plt.show()
+
+    # Avoid division by zero:
+    count_map[count_map == 0] = 1
+    # Finally, calculating the avg v_y in each bin:
+    v_y_colormap /= count_map
+
+    # Apply the mask to keep bins with at least a `min_den` surface density
+    mask = surf_den_map >= min_den
+    vmap = np.where(mask, v_y_colormap, np.nan)
+
+    return vmap, x_edges, z_edges
 
 def plot(
         pos_star,
         vel_star,
+        mass_star,
         pos_gas,
         vel_gas,
+        mass_gas,
         display_name,
         snap,
         horiz_axis=0,
         vert_axis=2,
         res=100,
-        gas_num=50,
-        star_num=20,
+        min_gas_sden=1.4e7,
+        min_star_sden=4.e7,
         save_plot=False,
         show_plot=True):
     '''
@@ -285,12 +383,15 @@ def plot(
         the 2 or z-axis.
     res: int, default 100
         Resolution: the number of pixels (i.e. bins) in each axis.
-    gas_num: int, default 50
-        The minimum number of gas particles a 2d histogram bin must have
-        for it to be included.
-    star_num: int, default 20
-        The minimum number of star particles a 2d histogram bin must have for
-        it to be included.
+    min_gas_sden: float, default 1.4e7
+        The minimum surface density in M_sun / kpc of gas particles for a pixel
+        in the velocity map to be given a numerical value. Otherwise the pixel
+        is np.nan.
+    min_star_sden: float, default 4.e7
+        The minimum surface density in M_sun / kpc of star particles for a
+        pixel
+        in the velocity map to be given a numerical value. Otherwise the pixel
+        is np.nan.
     save_plot: bool, default True
         Whether to save the plot to disk. If True, the code will save the plot
         in the `figures` directory specified in the user's 
@@ -345,119 +446,26 @@ def plot(
         raise ValueError('Something is wrong with the axis specifications')
     los_axis = los_axis[0]
 
-    # Only the `los_axis`-axis velocity is necessary.
-    v_y_gas = vel_gas[:, los_axis]  # Use for colormap
-    #v_x_gas = vel_gas[:, horiz_axis]
-    #v_z_gas = vel_gas[:, vert_axis]
-
-    # The function looks down the `los_axis`-axis and so does not use its
-    # positional
-    # information.
-    x_gas = pos_gas[:, horiz_axis]
-    #y_gas = pos_gas[:, los_axis]
-    z_gas = pos_gas[:, vert_axis]
-
-    # Create 2D histogram for gas
-    hist_gas, x_edges_gas, z_edges_gas = np.histogram2d(
-        x_gas,
-        z_gas,
-        bins=res
+    v_y_colormap_gas, x_edges_gas, z_edges_gas = calc_vmap(
+        pos_gas,
+        vel_gas,
+        mass_gas,
+        los_axis,
+        horiz_axis,
+        vert_axis,
+        res,
+        min_gas_sden,
     )
-    # Need to reverse z_edges so that z_edges[0] is the highest z. This is what
-    # matplotlib.pyplot.imshow expects, and it makes sense when one considers
-    # that when printing the mesh data, high z should be on the top of the
-    # matrix.
-    z_edges_gas = z_edges_gas[::-1]
-
-    hist_gas += 1  # Avoid log(0)
-
-    # Apply the mask to keep bins with at least `gas_num` gas particles
-    mask_gas = hist_gas >= gas_num
-
-    #**********************************************************************
-    # Bin the v_y values for gas and create a colormap based on the average 
-    # v_y in each bin
-
-    # Get indices of the x and z locations into which each particle falls
-    x_bin_indices_gas = np.digitize(x_gas, x_edges_gas) - 1
-    z_bin_indices_gas = np.digitize(z_gas, z_edges_gas) - 1
-    v_y_colormap_gas = np.zeros_like(hist_gas)
-    count_map_gas = np.zeros_like(hist_gas)
-
-    for i in range(len(x_gas)):
-        if (
-                0 <= x_bin_indices_gas[i] < res 
-                and 0 <= z_bin_indices_gas[i] < res):
-            v_y_colormap_gas[
-                x_bin_indices_gas[i],
-                z_bin_indices_gas[i]
-            ] += v_y_gas[i]
-            count_map_gas[x_bin_indices_gas[i], z_bin_indices_gas[i]] += 1
-
-    # Avoid division by zero:
-    count_map_gas[count_map_gas == 0] = 1
-    # Finally, calculating the avg v_y in each bin:
-    v_y_colormap_gas /= count_map_gas
-
-    # Apply the mask to remove bins with fewer than `gas_num` gas particles
-    v_y_colormap_gas = np.where(mask_gas, v_y_colormap_gas, np.nan)
-    #**********************************************************************
-
-    # Only the `los_axis`-axis velocity is necessary.
-    v_y_star = vel_star[:, los_axis]  # Use for colormap
-    #v_x_star = vel_star[:, horiz_axis]
-    #v_z_star = vel_star[:, vert_axis]
-
-    # The function looks down the `los_axis`-axis and so does not use its
-    # positional
-    # information.
-    x_star = pos_star[:, horiz_axis]
-    #y_star = pos_star[:, los_axis]
-    z_star = pos_star[:, vert_axis]
-
-    # Create 2D histogram for stars
-    hist_star, x_edges_star, z_edges_star = np.histogram2d(
-        x_star,
-        z_star,
-        bins=res
+    v_y_colormap_star, x_edges_star, z_edges_star = calc_vmap(
+        pos_star,
+        vel_star,
+        mass_star,
+        los_axis,
+        horiz_axis,
+        vert_axis,
+        res,
+        min_star_sden,
     )
-    # Need to reverse z_edges so that z_edges[0] is the highest z. This is what
-    # matplotlib.pyplot.imshow expects, and it makes sense when one considers
-    # that when printing the mesh data, high z should be on the top of the
-    # matrix.
-    z_edges_star = z_edges_star[::-1]
-
-    hist_star += 1  # Avoid log(0)
-
-    # Apply the mask to keep bins with at least `star_num` star particles
-    mask_star = hist_star >= star_num
-
-    #**************************************************************************
-    # Bin the v_y values for stars and create a colormap based on the average 
-    # v_y in each bin
-    x_bin_indices_star = np.digitize(x_star, x_edges_star) - 1
-    z_bin_indices_star = np.digitize(z_star, z_edges_star) - 1
-    v_y_colormap_star = np.zeros_like(hist_star)
-    count_map_star = np.zeros_like(hist_star)
-
-    for i in range(len(x_star)):
-        if (
-                0 <= x_bin_indices_star[i] < res 
-                and 0 <= z_bin_indices_star[i] < res):
-            v_y_colormap_star[
-                x_bin_indices_star[i], 
-                z_bin_indices_star[i]
-            ]  += v_y_star[i]
-            count_map_star[x_bin_indices_star[i], z_bin_indices_star[i]] += 1
-
-    # Avoid division by zero:
-    count_map_star[count_map_star == 0] = 1
-    # Finally, calculating the avg v_y in each bin:
-    v_y_colormap_star /= count_map_star
-    #**************************************************************************
-
-    # Apply the mask to remove bins with fewer than `star_num` star particles
-    v_y_colormap_star = np.where(mask_star, v_y_colormap_star, np.nan)
 
     # Set up the figure and axis
     fig, ax = plt.subplots(1, 2, figsize=(12, 5))
