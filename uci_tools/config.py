@@ -3,13 +3,13 @@ import configparser
 
 env_str = os.getenv('CONDA_DEFAULT_ENV', 'base')
 if env_str == 'base':
-    env_str = ''
+    env_suffix = ''
 else:
-    env_str = '_' + env_str
+    env_suffix = '_' + env_str
 home = os.path.expanduser(os.path.join(
     '~/'
 ))
-config_fname = 'config' + env_str + '.ini'
+config_fname = 'config' + env_suffix + '.ini'
 
 def ensure_user_config():
     config = configparser.ConfigParser()
@@ -30,7 +30,7 @@ def ensure_user_config():
             ' This code has created one for you in your home directory called' 
             ' {0}.'
             ' If you want to customize anything in the config file,'
-            ' you can do so safely.'
+            ' you can do so safely.\n'
             .format(config_fname, None, __package__, env_str)
         )
 
@@ -46,7 +46,7 @@ def ensure_user_config():
         )
 
     if not config.has_option(f'{__package__}_paths', 'output_dir'):
-        output_dname = 'output' + env_str
+        output_dname = 'output' + env_suffix
         output_dir = os.path.join(home, output_dname)
         config.set(f'{__package__}_paths', 'output_dir', output_dir)
         if not os.path.isdir(output_dir):

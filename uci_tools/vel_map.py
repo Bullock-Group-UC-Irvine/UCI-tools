@@ -111,6 +111,8 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
         so the the x- and y-axes are in the plane of the disc by aligning 
         the z-axis 
         with the net angular momentum of the cold gas (T <= 1e4 K)
+    mass_gas: np.ndarray, shape (N_stars,)
+        Masses of the gas particles in units of 1e10 M_sun
     '''
     import h5py
     import numpy as np
@@ -153,11 +155,15 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
         jnet_star = np.array(f['jnet_young_star'])
         mass_star = np.array(f['mass'])
 
-    aux = temp < 1e4
-    temp = temp[aux]
-    pos_gas = pos_gas[aux]
-    vel_gas = vel_gas[aux]
-    mass_gas = mass_gas[aux]
+    #**************************************************************************
+    # Gas
+    #**************************************************************************
+    is_cool = temp < 1e4
+    temp = temp[is_cool]
+    pos_gas = pos_gas[is_cool]
+    vel_gas = vel_gas[is_cool]
+    mass_gas = mass_gas[is_cool]
+
     jnet_gas = rotate_galaxy.calculate_ang_mom(mass_gas, pos_gas, vel_gas)
 
     # Rotation matrix
@@ -173,13 +179,20 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
 
     v_gas = np.linalg.norm(vel_gas, axis=1)
     v_max = 220
-    aux = v_gas <= v_max
-    vel_gas = vel_gas[aux & gas_in_x & gas_in_z]
-    pos_gas = pos_gas[aux & gas_in_x & gas_in_z]
+    gas_below_vmax = v_gas <= v_max
 
+    temp = temp[gas_below_vmax & gas_in_x & gas_in_z]
+    pos_gas = pos_gas[gas_below_vmax & gas_in_x & gas_in_z]
+    vel_gas = vel_gas[gas_below_vmax & gas_in_x & gas_in_z]
+    mass_gas = mass_gas[gas_below_vmax & gas_in_x & gas_in_z]
+
+    #**************************************************************************
+    # Stars
+    #**************************************************************************
     young_mask = (sft <= (lbt + .5))
     pos_star = pos_star[young_mask]
     vel_star = vel_star[young_mask]
+    mass_star = mass_star[young_mask]
 
     # Rotation matrix
     r_matrix_star = rotate_galaxy.cal_rotation_matrix(
@@ -193,9 +206,12 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     stars_in_z = np.abs(pos_star[:, 2]) <= zmax
 
     v_star = np.linalg.norm(vel_star, axis=1)
-    aux = v_star <= v_max
-    vel_star = vel_star[aux & stars_in_x & stars_in_z]
-    pos_star = pos_star[aux & stars_in_x & stars_in_z]
+    stars_below_vmax = v_star <= v_max
+    
+    pos_star = pos_star[stars_below_vmax & stars_in_x & stars_in_z]
+    vel_star = vel_star[stars_below_vmax & stars_in_x & stars_in_z]
+    mass_star = mass_star[stars_below_vmax & stars_in_x & stars_in_z]
+    #**************************************************************************
 
     mass_star /= 1.e10
     mass_gas /= 1.e10

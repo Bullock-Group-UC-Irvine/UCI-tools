@@ -92,9 +92,13 @@ class TestVelMap(unittest.TestCase):
         data = uci.vel_map.load_m12_data_olti(
             './uci_tools/tests/test_data/downsampled_sim_data/fire_sim/'
                 'thelma_downsampled_for_vel_map.h5',
-            '600'
+            '600',
         )
-        gas_map, young_star_map = uci.vel_map.plot(
+        stars_vels = data[1]
+        stars_masses = data[2]
+        gas_vels = data[-2]
+        gas_masses = data[-1]
+        vel_map_output = uci.vel_map.plot(
             *data,
             display_name='Thelma downsampled',
             snap='600',
@@ -105,14 +109,15 @@ class TestVelMap(unittest.TestCase):
             min_star_sden=0.,
             save_plot=False
         )
+        gas_map, young_star_map = vel_map_output[:2]
         with h5py.File(
                 './uci_tools/tests/test_data/'
                     'thelma_test_vel_maps.h5',
                 'r') as f:
             # We reverse the z axis of the maps below because when we created
             # the test data, we accidentally did it upside-down.
-            gas_map_answer = f['gas'][()][:, ::-1]
-            young_star_map_answer = f['young_stars'][()][:, ::-1]
+            gas_map_answer = f['gas'][()][::-1]
+            young_star_map_answer = f['young_stars'][()][::-1]
         npt.assert_allclose(gas_map, gas_map_answer)
         npt.assert_allclose(young_star_map, young_star_map_answer)
         return None
