@@ -94,10 +94,6 @@ class TestVelMap(unittest.TestCase):
                 'thelma_downsampled_for_vel_map.h5',
             '600',
         )
-        stars_vels = data[1]
-        stars_masses = data[2]
-        gas_vels = data[-2]
-        gas_masses = data[-1]
         vel_map_output = uci.vel_map.plot(
             *data,
             display_name='Thelma downsampled',
@@ -106,7 +102,7 @@ class TestVelMap(unittest.TestCase):
             vert_axis=2,
             res=100,
             min_gas_sden=0.,
-            min_star_sden=0.,
+            min_stars_sden=0.,
             save_plot=False
         )
         gas_map, young_star_map = vel_map_output[:2]
@@ -114,10 +110,8 @@ class TestVelMap(unittest.TestCase):
                 './uci_tools/tests/test_data/'
                     'thelma_test_vel_maps.h5',
                 'r') as f:
-            # We reverse the z axis of the maps below because when we created
-            # the test data, we accidentally did it upside-down.
-            gas_map_answer = f['gas'][()][::-1]
-            young_star_map_answer = f['young_stars'][()][::-1]
+            gas_map_answer = f['velmap_gas'][()]
+            young_star_map_answer = f['velmap_stars'][()]
         npt.assert_allclose(gas_map, gas_map_answer)
         npt.assert_allclose(young_star_map, young_star_map_answer)
         return None
