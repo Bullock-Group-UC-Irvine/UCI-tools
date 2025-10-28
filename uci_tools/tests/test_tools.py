@@ -103,7 +103,7 @@ class TestVelMap(unittest.TestCase):
             display_name='Thelma downsampled',
             snap='600',
             horiz_axis=0,
-            vert_axis=1,
+            vert_axis=2,
             res=100,
             min_gas_sden=0.,
             min_star_sden=0.,
