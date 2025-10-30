@@ -428,12 +428,32 @@ def plot(
         `matplotlib.axes.Axis.pcolormesh`. X data is along the 1 axis. Z data
         is along the 0 axis. The user can directly input this into
         `pcolormesh`.
-    x_edges_gas
-    z_edges_gas
-    x_edges_star
-    z_edges_star
-    quadmesh_gas
-    quadmesh_star
+    x_edges_gas: np.ndarray, shape (res,)
+        The locations of the edges of the gas velocity map pixels in kpc along
+        the
+        horizontal axis
+    z_edges_gas: np.ndaray, shape (res,)
+        The locations of the edges of the gas velocity map pixels in kpc
+        along the
+        vertical axis
+    x_edges_star: np.ndarray, shape (res,)
+        The locations of the edges of the stellar velocity map pixels in kpc
+        along
+        the
+        horizontal axis
+    z_edges_star: np.ndarray, shape (res,)
+        The locations of the edges of the stellar velocity map pixels in kpc
+        along
+        the
+        vertical axis
+    quadmesh_gas: matplotlib.collections.QuadMesh
+        The output of the plt.pcolormesh that creates the velocity map visual
+        for the gas. The user can use this to replicate the exact visual
+        at a later time.
+    quadmesh_star: matplotlib.collections.QuadMesh
+        The output of the plt.pcolormesh that creates the velocity map visual
+        for the stars. The user can use this to replicate the exact visual
+        at a later time.
     '''
 
     import os
