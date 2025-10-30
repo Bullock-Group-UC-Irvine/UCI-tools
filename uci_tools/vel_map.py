@@ -133,7 +133,6 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
 
     data = {}
     with h5py.File(sim_path, 'r') as f:
-        print(f.keys())
         host_center = np.array(f['host_center'])
         host_vel = np.array(f['host_velocity'])
 
