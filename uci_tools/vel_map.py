@@ -217,9 +217,60 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     
     return pos_star, vel_star, mass_star, pos_gas, vel_gas, mass_gas
 
-def calc_vmap(coords, vs, ms, los_axis, horiz_axis, vert_axis, res, min_den):
+def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_den):
+    '''
+    Calculate the velocity map for the particles that the user provides.
+
+    Parameters
+    ----------
+    coords: np.ndarray, shape (N, 3)
+        Cartesian position vectors relative to the host center, in physical
+        kpc, of the
+        particles whose velocities the user wants to map.
+        The resulting velocity map takes the line of sight to be the axis that
+        is perpendicular to the `horiz_axis` and `vert_axis`. For example, if
+        the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum and specifies
+        `horiz_axis=0, vert_axis=2`, this is analagous to
+        looking into the disc edge-on.
+    vs: np.ndarray, shape (N, 3)
+        Cartesian velocity vectors relative to the host center, in physical
+        km/s, of the particles whose
+        velocities the user wants to map.
+        If
+        the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum and specifies
+        `horiz_axis=0, vert_axis=2`, this is analagous to
+        looking into the disc edge-on.
+    ms: np.ndarray, shape (N,)
+        The masses of the particles, in units of 1e10 M_sun, whose
+        velocities
+        the user wants to map.
+    horiz_axis: int, default 0
+        The index that would appear horizontally if the user printed the
+        results. Note that this is the 1 axis (columns) of the resulting array.
+    vert_axis: int, default 2
+        The index that would appear vertically if the user printed the
+        results. Note that this is the 0 axis (rows) of the resulting array.
+    res: int
+        Resolution: the number of pixels (i.e. bins) in each axis of the
+        velocity map.
+    min_sden: float
+        The minimum surface density in M_sun / kpc of particles for a pixel
+        in the velocity map to be given a numerical value. Otherwise the pixel
+        is np.nan.
+    '''
     import numpy as np
     import matplotlib.pyplot as plt
+
+    axes = [0, 1, 2]
+    # Determine which axis the user did not specify as a projection axis 
+    los_axis = np.setdiff1d(axes, [horiz_axis, vert_axis])
+    if len(los_axis) > 1:
+        # There should only be one line-of-sight axis
+        raise ValueError('Something is wrong with the axis specifications')
+    los_axis = los_axis[0]
+
     # Only the `los_axis`-axis velocity is necessary.
     v_y = vs[:, los_axis]  # Use for colormap
     # Need to subract off the average velocity. Gas may be moving differently
@@ -349,40 +400,52 @@ def plot(
 
     Parameters
     ----------
+    pos_star: np.ndarray, shape (N_stars, 3)
+        Cartesian position vectors relative to the host center, in physical
+        kpc, of the
+        star particles whose velocities the user wants to map.
+        The resulting velocity map takes the line of sight to be the axis that
+        is perpendicular to the `horiz_axis` and `vert_axis`. For example, if
+        the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum and specifies
+        `horiz_axis=0, vert_axis=2`, this is analagous to
+        looking into the disc edge-on.
+    vel_star: np.ndarray, shape (N_stars, 3)
+        Cartesian velocity vectors relative to the host center, in physical
+        km/s, of the star particles whose
+        velocities the user wants to map.
+        If
+        the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum and specifies
+        `horiz_axis=0, vert_axis=2`, this is analagous to
+        looking into the disc edge-on.
+    mass_star: np.ndarray, shape (N_star,)
+        The masses of the star particles, in units of 1e10 M_sun, whose
+        velocities
+        the user wants to map.
     pos_gas: np.ndarray, shape (N_gas, 3)
         Cartesian position vectors relative to the host center, in physical
         kpc, of the
         gas particles whose velocities the user wants to map.
-        The resulting velocity map assumes the line of sight is down the 1 axis
-        (or y-axis). If the user provides rotated vectors with their z-axis
-        aligned with the galaxy's net angular momentum, this is analagous to
-        looking into the disc.
+        The resulting velocity map takes the line of sight to be the axis that
+        is perpendicular to the `horiz_axis` and `vert_axis`. For example, if
+        the user provides rotated vectors with their z-axis
+        aligned with the galaxy's net angular momentum and specifies
+        `horiz_axis=0, vert_axis=2`, this is analagous to
+        looking into the disc edge-on.
     vel_gas: np.ndarray, shape (N_gas, 3)
         Cartesian velocity vectors relative to the host center, in physical
         km/s, of the gas particles whose
         velocities the user wants to map.
-        The resulting velocity map assumes the line of sight is down the 1 axis
-        (or y-axis). Therefore, this function maps the 1-axis velocities. If
+        If
         the user provides rotated vectors with their z-axis
-        aligned with the galaxy's net angular momentum, this is analagous to
-        looking into the disc.
-    pos_star: np.ndarray, shape (N_stars, 3)
-        Cartesian position vectors relative to the host center, in physical
-        kpc, of the star
-        particles whose velocities the user wants to map.
-        The resulting velocity map assumes the line of sight is down the 1 axis
-        (or y-axis). If the user provides rotated vectors with their z-axis
-        aligned with the galaxy's net angular momentum, this is analagous to
-        looking into the disc.
-    vel_star: np.ndarray, shape (N_stars, 3)
-        Cartesian velocity vectors relative to the host center, in physical
-        km/s, of the gas particles whose
-        velocities the user wants to map.
-        The resulting velocity map assumes the line of sight is down the 1 axis
-        (or y-axis). Therefore, this function maps the 1-axis velocities. If
-        the user provides rotated vectors with their z-axis
-        aligned with the galaxy's net angular momentum, this is analagous to
-        looking into the disc.
+        aligned with the galaxy's net angular momentum and specifies
+        `horiz_axis=0, vert_axis=2`, this is analagous to
+        looking into the disc edge-on.
+    mass_gas: np.ndarray, shape (N_star,)
+        The masses of the gas particles, in units of 1e10 M_sun, whose
+        velocities
+        the user wants to map.
     display_name: str 
         Simulation name to show in the plot.
     snap: str
@@ -473,19 +536,10 @@ def plot(
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
 
-    axes = [0, 1, 2]
-    # Determine which axis the user did not specify as a projection axis 
-    los_axis = np.setdiff1d(axes, [horiz_axis, vert_axis])
-    if len(los_axis) > 1:
-        # There should only be one line-of-sight axis
-        raise ValueError('Something is wrong with the axis specifications')
-    los_axis = los_axis[0]
-
     v_y_colormap_gas, x_edges_gas, z_edges_gas = calc_vmap(
         pos_gas,
         vel_gas,
         mass_gas,
-        los_axis,
         horiz_axis,
         vert_axis,
         res,
@@ -495,7 +549,6 @@ def plot(
         pos_star,
         vel_star,
         mass_star,
-        los_axis,
         horiz_axis,
         vert_axis,
         res,

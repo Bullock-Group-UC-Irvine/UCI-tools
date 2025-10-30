@@ -28,6 +28,9 @@ def replace_in_files_interactive(directory, old_string, new_string):
             if (filename.startswith('.') 
                 or filename.startswith('__')
                 or (not filename.endswith('.py') 
+                    and not filename.endswith('.jl')
+                    and not filename.endswith('.toml')
+                    and not filename.endswith('.md')
                     and not filename.endswith('.ipynb'))
                ):
                 continue
