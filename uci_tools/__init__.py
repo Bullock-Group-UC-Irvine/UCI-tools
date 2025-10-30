@@ -5,6 +5,7 @@ from . import (
     rotate_galaxy,
     vel_map,
     fire_tools,
+    firebox_io,
 )
 
 from .__version__ import __version__
@@ -17,5 +18,6 @@ __all__ = [
     'fire_io',
     'rotate_galaxy',
     'vel_map',
-    'fire_tools'
+    'fire_tools',
+    'firebox_io',
 ]

@@ -115,3 +115,12 @@ class TestVelMap(unittest.TestCase):
         npt.assert_allclose(gas_map, gas_map_answer)
         npt.assert_allclose(young_star_map, young_star_map_answer)
         return None
+
+class TestFireIO(unittest.TestCase):
+    '''
+    Test some functions in firebox_io
+    '''
+
+    def test_fov(self):
+        assert uci.firebox_io.get_fov(0) == 28
+        return None

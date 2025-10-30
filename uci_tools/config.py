@@ -61,6 +61,49 @@ def ensure_user_config():
         config.set(f'{__package__}_paths', 'snap_times', snap_times_path)
         print(f'snap_times added to {__package__}_paths')
 
+    if not config.has_option(f'{__package__}_paths', 'sat_image_dir'):
+        config.set(
+            f'{__package__}_paths',
+            'sat_image_dir',
+            "/DFS-L/DATA/cosmo/kleinca/FIREBox_Images/satellite/band_ugr"
+        )
+        print(f'sat_image_dir added to {__package__}_paths')
+
+    if not config.has_option(f'{__package__}_paths', 'host_image_dir'):
+        config.set(
+            f'{__package__}_paths',
+            'host_image_dir',
+            "/DFS-L/DATA/cosmo/kleinca/FIREBox_Images/host/band_ugr"
+        )
+        print(f'host_image_dir added to {__package__}_paths')
+
+    if not config.has_option(f'{__package__}_paths', 'firebox_data_dir'):
+        config.set(
+            f'{__package__}_paths',
+            'firebox_data_dir',
+            "/DFS-L/DATA/cosmo/jgmoren1/FIREbox/FB15N1024/"
+        )
+        print(f'firebox_data_dir added to {__package__}_paths')
+
+    if not config.has_option(f'{__package__}_paths', 'host_2d_shapes'): 
+        config.set(
+            f'{__package__}_paths',
+            'host_2d_shapes',
+            '/DFS-L/DATA/cosmo/kleinca/data/'
+                'AstroPhot_NewHost_bandr_Rerun_Sersic.csv',
+        )
+        print(f'host_2d_shapes added to {__package__}_paths')
+
+    if not config.has_option(f'{__package__}_paths', 'sat_2d_shapes'):
+        config.set(
+            f'{__package__}_paths',
+            'sat_2d_shapes',
+            '/DFS-L/DATA/cosmo/kleinca/data/'
+                'DataWithMockImagesWithBadExtinction/'
+                'AstroPhot_Sate_Sersic_AllMeasure.csv'
+        )
+        print(f'sat_2d_shapes added to {__package__}_paths')
+
     with open(config_path, 'w') as f:
         config.write(f)
 

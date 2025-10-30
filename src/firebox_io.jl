@@ -8,13 +8,13 @@ import ProgressBars
 import DataFrames
 import CSV
 import Statistics
-import IndexedDFs
+import IndexedDataFrames
 
 ENV["GKSwstype"] = "100"
 
 configer = PyCall.pyimport("__main__.myproject.config")
 config = configer.config
-super_direc = config["gallearn_paths"]["firebox_data_dir"]
+super_direc = config["uci_tools_paths"]["firebox_data_dir"]
 
 function get_grp_id(gal_id)
     fname = super_direc * 
@@ -117,7 +117,7 @@ function summarize_gals(;save=false)
         id=ids,
         grp_id=grp_ids,
     )
-    idf = IndexedDFs.IndexedDF(df, "id")
+    idf = IndexedDataFrames.IndexedDataFrame(df, "id")
 
 
     for (i, (gal_id, grp_id)) in ProgressBars.ProgressBar(
@@ -187,7 +187,7 @@ function get_sfrs(
         Mstar=Any[fill(nothing, length(ids))...],
         bound_frac=Float64[fill(1., length(ids))...]
     )
-    idf = IndexedDFs.IndexedDF(df, "id")
+    idf = IndexedDataFrames.IndexedDataFrame(df, "id")
 
     sfrs_gals = Float64[]
     missing_files = Int64[]
@@ -313,7 +313,7 @@ function get_avg_sfrs(ids, grp_ids)
         Mstar=Any[fill(nothing, length(ids))...],
         bound_star_frac=Float64[fill(1., length(ids))...],
     )
-    idf = IndexedDFs.IndexedDF(df, "id")
+    idf = IndexedDataFrames.IndexedDataFrame(df, "id")
 
     for (gal_id, grp_id) in ProgressBars.ProgressBar(zip(ids, grp_ids))
         id_str = string(gal_id)
@@ -420,6 +420,24 @@ function get_all_sfrs(;save=false)
         CSV.write("/DFS-L/DATA/cosmo/pstaudt/gallearn/sfrs.csv", sfr_df.df)
     end
     return sfr_df
+end
+
+function vel_map(gal_id)
+    uci = PyCall.pyimport("UCI_tools")    
+
+    id_str = string(gal_id)
+    fname = joinpath(
+        super_direc,
+        "objects_1200",
+        "particles_within_Rvir_object_" * 
+            id_str * 
+            ".hdf5"
+    )
+    if isfile(fname)
+        sfrs, gas_masses, Mstar, snap_time, gas_ids = h5open(
+
+        uci.vel_map.calc_vmap
+    return nothing
 end
 
 end # module firebox_io 
