@@ -65,7 +65,7 @@ def save_gbl_data(test_data_dir):
     with h5py.File(path, 'r') as f_in:
         ids = f_in['galaxyID'][()]
         grp_ids = f_in['groupID'][()]
-    is_0 = ids == '0'
+    is_0 = ids == 0
 
     if not os.path.isdir(test_data_dir):
         os.makedirs(test_data_dir)
