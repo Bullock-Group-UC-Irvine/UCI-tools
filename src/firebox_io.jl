@@ -12,9 +12,14 @@ import IndexedDataFrames
 
 ENV["GKSwstype"] = "100"
 
-configer = PyCall.pyimport("__main__.myproject.config")
+configer = PyCall.pyimport("uci_tools.config")
 config = configer.config
-super_direc = config["uci_tools_paths"]["firebox_data_dir"]
+super_direc = PyCall.pycall(
+    config.get,
+    String,
+    "uci_tools_paths",
+    "firebox_data_dir"
+)
 
 function get_grp_id(gal_id)
     fname = super_direc * 
@@ -423,20 +428,29 @@ function get_all_sfrs(;save=false)
 end
 
 function vel_map(gal_id)
-    uci = PyCall.pyimport("UCI_tools")    
+    uci = PyCall.pyimport("uci_tools")    
 
     id_str = string(gal_id)
-    fname = joinpath(
+    path = joinpath(
         super_direc,
         "objects_1200",
         "particles_within_Rvir_object_" * 
             id_str * 
             ".hdf5"
     )
-    if isfile(fname)
+    if isfile(path)
         sfrs, gas_masses, Mstar, snap_time, gas_ids = h5open(
+                path, 
+                "r") do file
+            println(keys(file))
+            gas_masses = read(file, "gas_mass")
+            gas_ids = Int.(read(file, "gas_id"))
+            gas_vs = read(file, "gas_vel")
+            return sfrs, gas_masses, Mstar, snap_time, gas_ids
+        end
 
-        uci.vel_map.calc_vmap
+        #uci.vel_map.calc_vmap(
+    end
     return nothing
 end
 

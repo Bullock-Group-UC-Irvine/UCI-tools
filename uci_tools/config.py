@@ -52,7 +52,7 @@ def ensure_user_config():
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
             print(f'{output_dir} created')
-        print('output_dir added to gallearn_paths')
+        print(f'output_dir added to {__package__}_paths')
 
     if not config.has_option(f'{__package__}_paths', 'snap_times'):
         snap_times_path = (
@@ -127,7 +127,9 @@ def load_config():
         # Create one for them if they don't.
         config_path = ensure_user_config()
 
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(
+        interpolation=configparser.ExtendedInterpolation()
+    )
     config.read(config_path)
     return config
 

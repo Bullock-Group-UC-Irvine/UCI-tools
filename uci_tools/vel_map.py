@@ -355,6 +355,19 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_den):
     mask = surf_den_map >= min_den
     vmap = np.where(mask, v_y_colormap, np.nan)
 
+    # The `H` output of `np.histogram2d` has x data along the 0 axis and y data 
+    # along the 1 axis.
+    # On one hand, that makes sense; when we specify coordinates, we tend to
+    # specify x first. E.g. (x, y). However, if one prints out `H`, visually,
+    # one might expect the x-axis to run horizontally along `H` and the y-axis 
+    # to
+    # run vertically along `H`. This is not the case. Additionally, 
+    # `pcolormesh`
+    # expects the column number as x and the row number as y 
+    # Therefore, we must provide the transpose of `H` to
+    # `pcolormesh`.
+    vmap = vmap.T
+
     return vmap, x_edges, z_edges
 
 def plot(
@@ -536,7 +549,7 @@ def plot(
     time = float(snapshot_times[int(snap)][3])
     lbt = np.abs(time - 13.8)
 
-    v_y_colormap_gas, x_edges_gas, z_edges_gas = calc_vmap(
+    velmap_gas, x_edges_gas, z_edges_gas = calc_vmap(
         pos_gas,
         vel_gas,
         mass_gas,
@@ -545,7 +558,7 @@ def plot(
         res,
         min_gas_sden,
     )
-    v_y_colormap_star, x_edges_star, z_edges_star = calc_vmap(
+    velmap_star, x_edges_star, z_edges_star = calc_vmap(
         pos_star,
         vel_star,
         mass_star,
@@ -559,22 +572,9 @@ def plot(
     fig, ax = plt.subplots(1, 2, figsize=(12, 5))
 
     # Get global vmin and vmax for the colormap based on both gas and stars
-    #vmin = min(np.nanmin(v_y_colormap_gas), np.nanmin(v_y_colormap_star))
-    vmax = max(np.nanmax(v_y_colormap_gas), np.nanmax(v_y_colormap_star))
+    #vmin = min(np.nanmin(velmap_gas), np.nanmin(velmap_star))
+    vmax = max(np.nanmax(velmap_gas), np.nanmax(velmap_star))
     vmin = -1*vmax
-
-    # The `H` output of `np.histogram2d` has x data along the 0 axis and y data 
-    # along the 1 axis.
-    # On one hand, that makes sense. However, if one prints out `H`, visually,
-    # one might expect the x-axis to run horizontally along `H` and the y-axis 
-    # to
-    # run vertically along `H`. This is not the case. Additionally, 
-    # `pcolormesh`
-    # expects the column number as x and the row number as y 
-    # Therefore, we must provide the transpose of `H` to
-    # `pcolormesh`.
-    velmap_gas = v_y_colormap_gas.T
-    velmap_star = v_y_colormap_star.T
 
     # Plot gas with colormap based on v_y_gas
     quadmesh_gas = ax[0].pcolormesh(
@@ -703,3 +703,69 @@ def plot(
         quadmesh_gas,
         quadmesh_star,
     )
+
+def firebox_vmap(gal_id, res, min_sden=1.4e7):
+    from . import config
+    from . import firebox_io
+    import os
+    import h5py
+    import numpy as np
+
+    id_str = str(gal_id)
+    
+    bound_ids = firebox_io.get_bound_particles(gal_id)
+
+    super_dir = config.config[f'{__package__}_paths']['firebox_data_dir']
+    path = os.path.join(
+        super_dir,
+        'objects_1200',
+        f"particles_within_Rvir_object_{id_str}.hdf5"
+    )
+
+    orientation_d = {
+        'projection_xy': {'h': 0, 'v': 1},
+        'projection_yz': {'h': 1, 'v': 2},
+        'projection_zx': {'h': 2, 'v': 0}
+    }
+
+    if os.path.exists(path):
+        with h5py.File(path, 'r') as f:
+            for orientation, axes_d in orientation_d.items():
+                # Get data for gas inside the fov of Courtney's images.
+                coords, vs, ms, ids = firebox_io.load_particle(
+                    'gas',
+                    f,
+                    gal_id,
+                    axes_d['h'],
+                    axes_d['v']
+                )
+
+                grp_id = firebox_io.load_grp_ids().loc[gal_id, 'grp_id']
+                if grp_id != -1:
+                    # If it's a satellite, get only bound particles
+                    (
+                        intersect1d,
+                        indices,
+                        comm2
+                    ) = intersection = np.intersect1d(
+                        ids,
+                        bound_ids,
+                        assume_unique=False,
+                        return_indices=True
+                    )
+                    coords = coords[indices]
+                    vs = vs[indices]
+                    ms = ms[indices]
+                    ids = ids[indices]
+                
+                vmap, horiz_edges, vert_edges = calc_vmap(
+                    coords,
+                    vs,
+                    ms,
+                    axes_d['h'],
+                    axes_d['v'],
+                    res,
+                    min_sden
+                )
+
+    return None
