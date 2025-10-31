@@ -47,3 +47,34 @@ def save_test_map(map_path, data_path):
         f.create_dataset('z_edges_stars', data=z_edges_stars)
     print('Finished')
     return None
+
+def save_gbl_data(test_data_dir):
+    from uci_tools import config
+    import h5py
+    import os
+
+    data_dir = config.config.get(f'uci_tools_paths', 'firebox_data_dir')
+    direc = os.path.join(
+        data_dir,
+        'global_sample_data'
+    )
+    path = os.path.join(
+        direc,
+        'global_sample_data_snapshot_1200.hdf5'
+    )
+    with h5py.File(path, 'r') as f_in:
+        ids = f_in['galaxyID'][()]
+        grp_ids = f_in['groupID'][()]
+    is_0 = ids == '0'
+
+    if not os.path.isdir(test_data_dir):
+        os.makedirs(test_data_dir)
+    test_data_path = os.path.join(
+        test_data_dir,
+        'global_sample_data_snapshot_1200.hdf5'
+    )
+    with h5py.File(test_data_path, 'w') as f_out:
+        f_out.create_dataset('groupID', data=grp_ids[is_0])
+        f_out.create_dataset('galaxyID', data=ids[is_0])
+
+    return None
