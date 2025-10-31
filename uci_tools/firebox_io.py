@@ -16,8 +16,8 @@ def load_grp_ids():
     )
     d = {}
     with h5py.File(fname, 'r') as f:
-        d['grp_id'] = f['groupID'][()]
-        ids = f['galaxyID'][()]
+        d['grp_id'] = f['groupID'][()].astype(int)
+        ids = f['galaxyID'][()].astype(int)
     df = pd.DataFrame(d, index=ids)
     return df
 
@@ -106,7 +106,13 @@ def get_fov(gal_id):
 
     return fov
 
-def load_particle(particle_str, f, gal_id, horiz_axis, vert_axis):
+def load_particle(
+        particle_str,
+        f,
+        gal_id,
+        horiz_axis,
+        vert_axis,
+        only_bound=True):
     import numpy as np
 
     ys = f[particle_str + '_y'][()]
@@ -126,7 +132,33 @@ def load_particle(particle_str, f, gal_id, horiz_axis, vert_axis):
     fov = get_fov(gal_id)
     in_fov = np.abs(dists_2d) <= fov / 2.
     
-    return coords[in_fov], vs[in_fov], ms[in_fov], ids[in_fov]
+    coords = coords[in_fov]
+    vs = vs[in_fov]
+    ms = ms[in_fov]
+    ids = ids[in_fov]
+
+    if only_bound:
+        grp_id = load_grp_ids().loc[gal_id, 'grp_id']
+
+        if grp_id != -1:
+            # If it's a satellite, get only bound particles
+            bound_ids = get_bound_particles(gal_id)
+            (
+                intersect1d,
+                indices,
+                comm2
+            ) = intersection = np.intersect1d(
+                ids,
+                bound_ids,
+                assume_unique=False,
+                return_indices=True
+            )
+            coords = coords[indices]
+            vs = vs[indices]
+            ms = ms[indices]
+            ids = ids[indices]
+
+    return coords, vs, ms, ids, fov
 
 def get_bound_particles(gal_id):
     from . import config
