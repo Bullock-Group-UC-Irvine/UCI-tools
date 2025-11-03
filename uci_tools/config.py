@@ -54,6 +54,15 @@ def ensure_user_config():
             print(f'{output_dir} created')
         print(f'output_dir added to {__package__}_paths')
 
+    if not config.has_option(f'{__package__}_paths', 'data_dir'):
+        output_dname = 'output' + env_suffix
+        data_dir = os.path.join(home, output_dname)
+        config.set(f'{__package__}_paths', 'data_dir', data_dir)
+        if not os.path.isdir(data_dir):
+            os.makedirs(data_dir)
+            print(f'{data_dir} created')
+        print(f'data_dir added to {__package__}_paths')
+
     if not config.has_option(f'{__package__}_paths', 'snap_times'):
         snap_times_path = (
             '/DFS-L/DATA/cosmo/grenache/omyrtaj/fofie/snapshot_times.txt'

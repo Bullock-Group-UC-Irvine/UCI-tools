@@ -217,7 +217,7 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     
     return pos_star, vel_star, mass_star, pos_gas, vel_gas, mass_gas
 
-def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_den):
+def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_sden):
     '''
     Calculate the velocity map for the particles that the user provides.
 
@@ -256,7 +256,7 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_den):
         Resolution: the number of pixels (i.e. bins) in each axis of the
         velocity map.
     min_sden: float
-        The minimum surface density in M_sun / kpc of particles for a pixel
+        The minimum surface density in M_sun / pc^2 of particles for a pixel
         in the velocity map to be given a numerical value. Otherwise the pixel
         is np.nan.
     '''
@@ -332,27 +332,29 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_den):
                 z_bin_indices[i]
             ] += v_y[i]
             count_map[x_bin_indices[i], z_bin_indices[i]] += 1
+            # Adding to the given pixel's surface brightness in units of
+            # 1e10 M_sun / kpc^2
             surf_den_map[x_bin_indices[i], z_bin_indices[i]] += (
                 ms[i] / bin_area
             )
     
-    # Convert surface density map from 1e10 M_sun / kpc to M_sun / kpc
-    surf_den_map *= 1.e10 
-    #masses = surf_den_map.flatten()
-    #bin_start = np.log10(np.sort(list(set(masses)))[1])
-    #bins = np.logspace(bin_start, np.log10(masses.max()), 50)
-    #plt.hist(masses, bins=bins)
-    #plt.xscale('log')
-    #plt.yscale('log')
-    #plt.show()
+    # Convert surface density map from 1e10 M_sun / kpc^2 to M_sun / pc^2
+    surf_den_map *= 1.e10 / 1.e3 / 1.e3
+    masses = surf_den_map.flatten()
+    bin_start = np.log10(np.sort(list(set(masses)))[1])
+    bins = np.logspace(bin_start, np.log10(masses.max()), 50)
+    plt.hist(masses, bins=bins)
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.show()
 
     # Avoid division by zero:
     count_map[count_map == 0] = 1
     # Finally, calculating the avg v_y in each bin:
     v_y_colormap /= count_map
 
-    # Apply the mask to keep bins with at least a `min_den` surface density
-    mask = surf_den_map >= min_den
+    # Apply the mask to keep bins with at least a `min_sden` surface density
+    mask = surf_den_map >= min_sden
     vmap = np.where(mask, v_y_colormap, np.nan)
 
     # The `H` output of `np.histogram2d` has x data along the 0 axis and y data 
@@ -382,8 +384,8 @@ def plot(
         horiz_axis=0,
         vert_axis=2,
         res=100,
-        min_gas_sden=1.4e7,
-        min_stars_sden=4.e7,
+        min_gas_sden=14.,
+        min_stars_sden=40.,
         save_plot=False,
         show_plot=True):
     '''
@@ -474,12 +476,12 @@ def plot(
         the 2 or z-axis.
     res: int, default 100
         Resolution: the number of pixels (i.e. bins) in each axis.
-    min_gas_sden: float, default 1.4e7
-        The minimum surface density in M_sun / kpc of gas particles for a pixel
+    min_gas_sden: float, default 14.
+        The minimum surface density in M_sun / pc^2 of gas particles for a pixel
         in the velocity map to be given a numerical value. Otherwise the pixel
         is np.nan.
-    min_stars_sden: float, default 4.e7
-        The minimum surface density in M_sun / kpc of star particles for a
+    min_stars_sden: float, default 40.
+        The minimum surface density in M_sun / pc^2 of star particles for a
         pixel
         in the velocity map to be given a numerical value. Otherwise the pixel
         is np.nan.
@@ -704,7 +706,7 @@ def plot(
         quadmesh_star,
     )
 
-def firebox_vmap(gal_id, res, min_sden=1.4e7):
+def firebox_vmap(gal_id, res, min_sden=14.):
     from . import config
     from . import firebox_io
     import os
@@ -713,13 +715,20 @@ def firebox_vmap(gal_id, res, min_sden=1.4e7):
 
     id_str = str(gal_id)
     
-    bound_ids = firebox_io.get_bound_particles(gal_id)
-
     super_dir = config.config[f'{__package__}_paths']['firebox_data_dir']
+    output_dir = os.path.join(
+        config.config[f'{__package__}_paths']['output_dir'],
+        'vmaps_res{0:0.0f}_min_sden{1:0.1e}'.format(res, min_sden)
+    )
+
     path = os.path.join(
         super_dir,
         'objects_1200',
         f"particles_within_Rvir_object_{id_str}.hdf5"
+    )
+    output_path = os.path.join(
+        output_dir,
+        f'object_{gal_id}_vmap.hdf5'
     )
 
     orientation_d = {
@@ -728,44 +737,113 @@ def firebox_vmap(gal_id, res, min_sden=1.4e7):
         'projection_zx': {'h': 2, 'v': 0}
     }
 
+    d = {}
     if os.path.exists(path):
         with h5py.File(path, 'r') as f:
             for orientation, axes_d in orientation_d.items():
                 # Get data for gas inside the fov of Courtney's images.
-                coords, vs, ms, ids = firebox_io.load_particle(
+                coords, vs, ms, ids, fov = firebox_io.load_particle(
                     'gas',
                     f,
                     gal_id,
                     axes_d['h'],
-                    axes_d['v']
-                )
-
-                grp_id = firebox_io.load_grp_ids().loc[gal_id, 'grp_id']
-                if grp_id != -1:
-                    # If it's a satellite, get only bound particles
-                    (
-                        intersect1d,
-                        indices,
-                        comm2
-                    ) = intersection = np.intersect1d(
-                        ids,
-                        bound_ids,
-                        assume_unique=False,
-                        return_indices=True
-                    )
-                    coords = coords[indices]
-                    vs = vs[indices]
-                    ms = ms[indices]
-                    ids = ids[indices]
-                
-                vmap, horiz_edges, vert_edges = calc_vmap(
-                    coords,
-                    vs,
-                    ms,
-                    axes_d['h'],
                     axes_d['v'],
-                    res,
-                    min_sden
+                    only_bound=True
                 )
+                if len(coords) == 0:
+                    # If there are no bound particles, end.
+                    return None 
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                with h5py.File(output_path, 'a') as out_f:
+                    out_f.attrs['fov'] = fov
+                    out_f.attrs['min_sden'] = min_sden
+                    out_f.attrs['res'] = res
 
+                    axes_d = orientation_d[orientation]
+                    vmap, horiz_edges, vert_edges = calc_vmap(
+                        coords,
+                        vs,
+                        ms,
+                        axes_d['h'],
+                        axes_d['v'],
+                        res,
+                        min_sden
+                    )
+
+                    d[orientation] = {}
+                    d[orientation]['vmap'] = vmap
+                    d[orientation]['horiz_edges'] = horiz_edges
+                    d[orientation]['vert_edges'] = vert_edges
+
+                    grp = out_f.create_group(orientation)
+                    grp.create_dataset('vmap', data=vmap)
+                    grp.create_dataset('horiz_edges', data=horiz_edges)
+                    grp.create_dataset('vert_edges', data=vert_edges)
+    return d
+
+def save_all_firebox_vmaps(res, min_sden=14.):
+    from . import config
+    from . import firebox_io
+    import os
+    import glob
+    import tqdm
+    df = firebox_io.load_grp_ids()
+    for gal_id in tqdm.tqdm(df.index, desc='Generating velocity maps'):
+        try:
+            firebox_vmap(gal_id, res, min_sden)
+        except KeyError:
+            print(f'object_{gal_id} is missing')
+
+def load_firebox_vmap(gal_id, res, min_sden):
+    from . import config
+    import os
+    import h5py
+    import numpy as np
+    from matplotlib import pyplot as plt
+    maps_dir = os.path.join(
+        config.config[f'{__package__}_paths']['data_dir'],
+        'vmaps_res{0:0.0f}_min_sden{1:0.1e}'.format(res, min_sden)
+    )
+
+    orientation_d = {
+        'projection_xy': {'h': 0, 'v': 1},
+        'projection_yz': {'h': 1, 'v': 2},
+        'projection_zx': {'h': 2, 'v': 0}
+    }
+    axes_d = {0: '$x$', 1: '$y$', 2: '$z$'}
+
+    fig, axs = plt.subplots(1, 3, figsize=(16, 4), sharex=True, sharey=True)
+
+    path = os.path.join(maps_dir, f'object_{gal_id}_vmap.hdf5')
+    with h5py.File(path, 'r') as f:
+        for i, (name, obj) in enumerate(f.items()):
+            if isinstance(obj, h5py.Group):
+                vmap = obj['vmap'][()]
+                horiz_edges = obj['horiz_edges']
+                vert_edges = obj['vert_edges']
+                
+                vmax = np.nanmax(vmap)
+                vmin = -1. * vmax
+
+                quadmesh = axs[i].pcolormesh(
+                    horiz_edges,
+                    vert_edges,
+                    vmap,
+                    cmap=plt.cm.seismic_r,
+                    vmin=vmin,
+                    vmax=vmax
+                )
+                axs[i].set_xlabel(
+                    '{0} [kpc]'.format(axes_d[orientation_d[name]['h']])
+                )
+                axs[i].set_ylabel(
+                    '{0} [kpc]'.format(axes_d[orientation_d[name]['v']])
+                )
+                axs[i].set_aspect('equal', adjustable='box')
+                fig.colorbar(
+                    quadmesh,
+                    ax=axs[i],
+                    label=r'Gas LOS Velocity [kms$^{-1}]$'
+                )
     return None
