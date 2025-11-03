@@ -101,8 +101,8 @@ class TestVelMap(unittest.TestCase):
             horiz_axis=0,
             vert_axis=2,
             res=100,
-            min_gas_sden=0.,
-            min_stars_sden=0.,
+            min_gas_cden=0.,
+            min_stars_cden=0.,
             save_plot=False
         )
         gas_map, young_star_map = vel_map_output[:2]
