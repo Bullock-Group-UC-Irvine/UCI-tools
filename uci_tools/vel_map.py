@@ -217,7 +217,7 @@ def load_m12_data_olti(sim_path, snap, xmax=None, zmax=None):
     
     return pos_star, vel_star, mass_star, pos_gas, vel_gas, mass_gas
 
-def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_sden):
+def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_cden):
     '''
     Calculate the velocity map for the particles that the user provides.
 
@@ -255,8 +255,8 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_sden):
     res: int
         Resolution: the number of pixels (i.e. bins) in each axis of the
         velocity map.
-    min_sden: float
-        The minimum surface density in M_sun / pc^2 of particles for a pixel
+    min_cden: float
+        The minimum column density in M_sun / pc^2 of particles for a pixel
         in the velocity map to be given a numerical value. Otherwise the pixel
         is np.nan.
     '''
@@ -332,13 +332,13 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_sden):
                 z_bin_indices[i]
             ] += v_y[i]
             count_map[x_bin_indices[i], z_bin_indices[i]] += 1
-            # Adding to the given pixel's surface brightness in units of
+            # Adding to the given pixel's column brightness in units of
             # 1e10 M_sun / kpc^2
             surf_den_map[x_bin_indices[i], z_bin_indices[i]] += (
                 ms[i] / bin_area
             )
     
-    # Convert surface density map from 1e10 M_sun / kpc^2 to M_sun / pc^2
+    # Convert column density map from 1e10 M_sun / kpc^2 to M_sun / pc^2
     surf_den_map *= 1.e10 / 1.e3 / 1.e3
     masses = surf_den_map.flatten()
     bin_start = np.log10(np.sort(list(set(masses)))[1])
@@ -353,8 +353,8 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_sden):
     # Finally, calculating the avg v_y in each bin:
     v_y_colormap /= count_map
 
-    # Apply the mask to keep bins with at least a `min_sden` surface density
-    mask = surf_den_map >= min_sden
+    # Apply the mask to keep bins with at least a `min_cden` column density
+    mask = surf_den_map >= min_cden
     vmap = np.where(mask, v_y_colormap, np.nan)
 
     # The `H` output of `np.histogram2d` has x data along the 0 axis and y data 
@@ -384,8 +384,8 @@ def plot(
         horiz_axis=0,
         vert_axis=2,
         res=100,
-        min_gas_sden=14.,
-        min_stars_sden=40.,
+        min_gas_cden=14.,
+        min_stars_cden=40.,
         save_plot=False,
         show_plot=True):
     '''
@@ -476,12 +476,12 @@ def plot(
         the 2 or z-axis.
     res: int, default 100
         Resolution: the number of pixels (i.e. bins) in each axis.
-    min_gas_sden: float, default 14.
-        The minimum surface density in M_sun / pc^2 of gas particles for a pixel
+    min_gas_cden: float, default 14.
+        The minimum column density in M_sun / pc^2 of gas particles for a pixel
         in the velocity map to be given a numerical value. Otherwise the pixel
         is np.nan.
-    min_stars_sden: float, default 40.
-        The minimum surface density in M_sun / pc^2 of star particles for a
+    min_stars_cden: float, default 40.
+        The minimum column density in M_sun / pc^2 of star particles for a
         pixel
         in the velocity map to be given a numerical value. Otherwise the pixel
         is np.nan.
@@ -558,7 +558,7 @@ def plot(
         horiz_axis,
         vert_axis,
         res,
-        min_gas_sden,
+        min_gas_cden,
     )
     velmap_star, x_edges_star, z_edges_star = calc_vmap(
         pos_star,
@@ -567,7 +567,7 @@ def plot(
         horiz_axis,
         vert_axis,
         res,
-        min_stars_sden,
+        min_stars_cden,
     )
 
     # Set up the figure and axis
@@ -706,7 +706,22 @@ def plot(
         quadmesh_star,
     )
 
-def firebox_vmap(gal_id, res, min_sden=14.):
+def firebox_vmap(gal_id, res, min_cden=14.):
+    '''
+    Create a velocity map for bound gas in a given FIREBox galaxy with the same
+    field of view as Courtney's image of that galaxy.
+
+    Parameters
+    ----------
+    gal_id: int
+        FIREBox galaxy unique ID
+    res: int
+        The number of pixels along each axis the velocity map should have
+    min_cden: float, default 14.
+        The minimum column density in M_sun / pc^2 of particles for a pixel
+        in the velocity map to be given a numerical value. Otherwise the pixel
+        is np.nan.
+    '''
     from . import config
     from . import firebox_io
     import os
@@ -718,7 +733,7 @@ def firebox_vmap(gal_id, res, min_sden=14.):
     super_dir = config.config[f'{__package__}_paths']['firebox_data_dir']
     output_dir = os.path.join(
         config.config[f'{__package__}_paths']['output_dir'],
-        'vmaps_res{0:0.0f}_min_sden{1:0.1e}'.format(res, min_sden)
+        'vmaps_res{0:0.0f}_min_cden{1:0.1e}'.format(res, min_cden)
     )
 
     path = os.path.join(
@@ -757,7 +772,7 @@ def firebox_vmap(gal_id, res, min_sden=14.):
                     os.makedirs(output_dir)
                 with h5py.File(output_path, 'a') as out_f:
                     out_f.attrs['fov'] = fov
-                    out_f.attrs['min_sden'] = min_sden
+                    out_f.attrs['min_cden'] = min_cden
                     out_f.attrs['res'] = res
 
                     axes_d = orientation_d[orientation]
@@ -768,7 +783,7 @@ def firebox_vmap(gal_id, res, min_sden=14.):
                         axes_d['h'],
                         axes_d['v'],
                         res,
-                        min_sden
+                        min_cden
                     )
 
                     d[orientation] = {}
@@ -782,7 +797,7 @@ def firebox_vmap(gal_id, res, min_sden=14.):
                     grp.create_dataset('vert_edges', data=vert_edges)
     return d
 
-def save_all_firebox_vmaps(res, min_sden=14.):
+def save_all_firebox_vmaps(res, min_cden=14.):
     from . import config
     from . import firebox_io
     import os
@@ -791,11 +806,11 @@ def save_all_firebox_vmaps(res, min_sden=14.):
     df = firebox_io.load_grp_ids()
     for gal_id in tqdm.tqdm(df.index, desc='Generating velocity maps'):
         try:
-            firebox_vmap(gal_id, res, min_sden)
+            firebox_vmap(gal_id, res, min_cden)
         except KeyError:
             print(f'object_{gal_id} is missing')
 
-def load_firebox_vmap(gal_id, res, min_sden):
+def load_firebox_vmap(gal_id, res, min_cden):
     from . import config
     import os
     import h5py
@@ -803,7 +818,7 @@ def load_firebox_vmap(gal_id, res, min_sden):
     from matplotlib import pyplot as plt
     maps_dir = os.path.join(
         config.config[f'{__package__}_paths']['data_dir'],
-        'vmaps_res{0:0.0f}_min_sden{1:0.1e}'.format(res, min_sden)
+        'vmaps_res{0:0.0f}_min_cden{1:0.1e}'.format(res, min_cden)
     )
 
     orientation_d = {
