@@ -259,6 +259,23 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_cden):
         The minimum column density in M_sun / pc^2 of particles for a pixel
         in the velocity map to be given a numerical value. Otherwise the pixel
         is np.nan.
+
+    Returns
+    -------
+    vmap, np.ndarray, shape (res, res)
+        The velocity map data for analysis or for use with 
+        `matplotlib.axes.Axis.pcolormesh`. Horizontal data is along the 1 axis.
+        Vertical data is along the 0 axis. The user can directly input this
+        into
+        `pcolormesh`.
+    x_edges, np.ndarray, shape (res,)
+        The locations of the edges of the velocity map pixels in kpc along
+        the
+        horizontal axis
+    z_edges, np.ndarray, shape (res,)
+        The locations of the edges of the velocity map pixels in kpc along
+        the
+        vertical axis
     '''
     import numpy as np
     import matplotlib.pyplot as plt
@@ -709,7 +726,9 @@ def plot(
 def firebox_vmap(gal_id, res, min_cden=14.):
     '''
     Create a velocity map for bound gas in a given FIREBox galaxy with the same
-    field of view as Courtney's image of that galaxy.
+    field of view as Courtney's image of that galaxy. If the FIREBox data file
+    doesn't exist in firebox_data_dir/objects_1200 or if the galaxy has no
+    bound particles, the function returns None.
 
     Parameters
     ----------
@@ -721,6 +740,34 @@ def firebox_vmap(gal_id, res, min_cden=14.):
         The minimum column density in M_sun / pc^2 of particles for a pixel
         in the velocity map to be given a numerical value. Otherwise the pixel
         is np.nan.
+
+    Returns
+    -------
+    d: Dict or None
+        Velocity map dictionary. If the FIREBox data file
+        doesn't exist in firebox_data_dir/objects_1200 or if the galaxy has no
+        bound particles, the function returns None.
+
+        Key-value pairs are
+
+        'vmap': np.ndarray, shape (res, res)
+            The velocity map data for analysis or for use with 
+            `matplotlib.axes.Axis.pcolormesh`. Horizontal data is along the
+            1 axis.
+            Vertical data is along the 0 axis. The user can directly input this
+            into
+            `pcolormesh`.
+        'horiz_edges': np.ndarray, shape (res,)
+            The locations of the edges of the velocity map pixels in
+            kpc along
+            the
+            horizontal axis 
+        'vert_edges': np.ndarray, shape (res,)
+            The locations of the edges of the velocity map
+            pixels in kpc along
+            the
+            vertical axis.
+    z_edges, np.ndarray, shape (res,)
     '''
     from . import config
     from . import firebox_io
@@ -795,9 +842,32 @@ def firebox_vmap(gal_id, res, min_cden=14.):
                     grp.create_dataset('vmap', data=vmap)
                     grp.create_dataset('horiz_edges', data=horiz_edges)
                     grp.create_dataset('vert_edges', data=vert_edges)
+    else:
+        return None
     return d
 
 def save_all_firebox_vmaps(res, min_cden=14.):
+    '''
+    Save bound-gas velocity maps for all FIREBox galaxies whose files exist in 
+    firebox_data_dir/objects_1200. The field of
+    view for each map corresponds to the field of view in
+    Courtney's mock image for the corresponding galaxy. The code saves the maps
+    in
+    output_dir/vmaps_res{res}_min_cden{min_cden}.
+
+    Parameters
+    ----------
+    res: int
+        The number of pixels along each axis the velocity map should have
+    min_cden: float, default 14.
+        The minimum column density in M_sun / pc^2 of particles for a pixel
+        in the velocity map to be given a numerical value. Otherwise the pixel
+        is np.nan.
+
+    Returns
+    -------
+    None
+    '''
     from . import config
     from . import firebox_io
     import os
@@ -809,8 +879,28 @@ def save_all_firebox_vmaps(res, min_cden=14.):
             firebox_vmap(gal_id, res, min_cden)
         except KeyError:
             print(f'object_{gal_id} is missing')
+    return None
 
 def load_firebox_vmap(gal_id, res, min_cden):
+    '''
+    Display the bound-gas velocity map that `save_all_firebox_vmaps` generated
+    for the given galaxy.
+
+    Parameters
+    ----------
+    gal_id: int
+        FIREBox galaxy unique ID
+    res: int
+        The number of pixels the velocity map has along each axis.
+    min_cden: float, default 14.
+        The minimum column density in M_sun / pc^2 with which
+        `save_all_firebox_vmaps` generated the velocity map. That function sets
+        pixels that are below the minimum density to np.nan.
+
+    Returns
+    -------
+    None
+    '''
     from . import config
     import os
     import h5py
