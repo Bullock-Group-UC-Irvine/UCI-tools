@@ -3,11 +3,12 @@ import numpy as np
 import numpy.testing as npt
 import unittest
 import h5py
+import os
+import pytest
+import shutil
 
 import uci_tools.tools as tools
 import uci_tools as uci
-
-###############################################################################
 
 class TestLoadFIREData( unittest.TestCase ):
     '''Test suite for loading FIRE data.
@@ -38,9 +39,6 @@ class TestLoadFIREData( unittest.TestCase ):
 
         assert 'Density' in snapshot.columns
         assert 'Coordinates0' in snapshot.columns
-
-
-###############################################################################
 
 class TestMisc( unittest.TestCase  ):
     ''' Testing nonloaded data
@@ -81,8 +79,6 @@ class TestMisc( unittest.TestCase  ):
                 atol = .15
             ) #snapshot 0	
 
-###############################################################################
-
 class TestVelMap(unittest.TestCase):
     '''
     Test that velocity map plotter works.
@@ -103,7 +99,7 @@ class TestVelMap(unittest.TestCase):
             res=100,
             min_gas_cden=0.,
             min_stars_cden=0.,
-            save_plot=False
+            save_plot=True
         )
         gas_map, young_star_map = vel_map_output[:2]
         with h5py.File(
@@ -124,3 +120,23 @@ class TestFireIO(unittest.TestCase):
     def test_fov(self):
         assert uci.firebox_io.get_fov(0) == 28
         return None
+
+@pytest.fixture(scope='session', autouse=True)
+def run_tests():
+    # The output_dir specified in the ci_config.ini is meant to be temporary.
+    # We'll
+    # delete it at the end of the code unless by coincidence it exists already.
+    output_dir = uci.config.config[f'uci_tools_paths']['output_dir']
+    if not os.path.isdir(output_dir):
+        temp_dir = True
+        os.mkdir(output_dir)
+    else:
+        temp_dir = False
+
+    # Run the tests
+    yield
+
+    if temp_dir:
+        shutil.rmtree(output_dir)
+
+    return None

@@ -6,6 +6,7 @@ from . import (
     vel_map,
     fire_tools,
     firebox_io,
+    config,
 )
 
 from .__version__ import __version__

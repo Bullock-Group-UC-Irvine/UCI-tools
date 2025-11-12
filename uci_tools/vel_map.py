@@ -326,7 +326,7 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_cden):
     x_bin_indices = np.digitize(x, x_edges) - 1
     z_bin_indices = np.digitize(z, z_edges) - 1
     v_y_colormap = np.zeros_like(hist)
-    surf_den_map = np.zeros_like(hist)
+    cden_map = np.zeros_like(hist)
     count_map = np.zeros_like(hist)
 
     bin_area = (
@@ -351,19 +351,22 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_cden):
             count_map[x_bin_indices[i], z_bin_indices[i]] += 1
             # Adding to the given pixel's column brightness in units of
             # 1e10 M_sun / kpc^2
-            surf_den_map[x_bin_indices[i], z_bin_indices[i]] += (
+            cden_map[x_bin_indices[i], z_bin_indices[i]] += (
                 ms[i] / bin_area
             )
     
     # Convert column density map from 1e10 M_sun / kpc^2 to M_sun / pc^2
-    surf_den_map *= 1.e10 / 1.e3 / 1.e3
-    masses = surf_den_map.flatten()
-    bin_start = np.log10(np.sort(list(set(masses)))[1])
-    bins = np.logspace(bin_start, np.log10(masses.max()), 50)
-    plt.hist(masses, bins=bins)
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.show()
+    cden_map *= 1.e10 / 1.e3 / 1.e3
+
+    inspect_cdens = False
+    if inspect_cdens:
+        masses = cden_map.flatten()
+        bin_start = np.log10(np.sort(list(set(masses)))[1])
+        bins = np.logspace(bin_start, np.log10(masses.max()), 50)
+        plt.hist(masses, bins=bins)
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.show()
 
     # Avoid division by zero:
     count_map[count_map == 0] = 1
@@ -371,7 +374,7 @@ def calc_vmap(coords, vs, ms, horiz_axis, vert_axis, res, min_cden):
     v_y_colormap /= count_map
 
     # Apply the mask to keep bins with at least a `min_cden` column density
-    mask = surf_den_map >= min_cden
+    mask = cden_map >= min_cden
     vmap = np.where(mask, v_y_colormap, np.nan)
 
     # The `H` output of `np.histogram2d` has x data along the 0 axis and y data 
@@ -504,7 +507,7 @@ def plot(
         is np.nan.
     save_plot: bool, default True
         Whether to save the plot to disk. If True, the code will save the plot
-        in the `figures` directory specified in the user's 
+        in the `output_dir` directory specified in the user's 
         config.ini file in
         their home directory. 
     show_plot: bool, default True
@@ -704,7 +707,7 @@ def plot(
 
         if save_plot:
             plt.savefig(os.path.join(
-                config.config['uci_tools_paths']['output'], 
+                config.config['uci_tools_paths']['output_dir'], 
                 'vel_map_{0}_snap{1}.png'.format(display_name.lower(), snap)
             ))
         if show_plot:

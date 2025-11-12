@@ -140,6 +140,7 @@ def load_config():
         interpolation=configparser.ExtendedInterpolation()
     )
     config.read(config_path)
+
     return config
 
 config = load_config()
